@@ -7,6 +7,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -29,11 +31,21 @@ public class SecurityConfig {
 
     static final long REQUESTS_PER_MINUTE = 60;
 
+    /**
+     * Google's access token is kept in the user's HTTP session, so logout's session invalidation discards it. (Boot's
+     * default keeps it in an app-wide in-memory map keyed by principal name, which outlives the session.)
+     */
+    @Bean
+    OAuth2AuthorizedClientRepository authorizedClientRepository() {
+        return new HttpSessionOAuth2AuthorizedClientRepository();
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, OidcLoginUserService oidcLoginUserService,
                                             ProblemDetailAuthenticationEntryPoint authenticationEntryPoint,
                                             ProblemDetailAccessDeniedHandler accessDeniedHandler,
-                                            ProblemResponseWriter problemResponseWriter) throws Exception {
+                                            ProblemResponseWriter problemResponseWriter,
+                                            OAuth2AuthorizedClientRepository authorizedClientRepository) throws Exception {
         RequestMatcher api = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
 
         http
@@ -41,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/ping", "/actuator/health", "/actuator/health/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2Login(login -> login
+                        .authorizedClientRepository(authorizedClientRepository)
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcLoginUserService))
                         .defaultSuccessUrl("/app", true)
                         .failureUrl("/app?login=failed"))
