@@ -7,7 +7,6 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { fakeStudent } from '../../../testing/fakes';
 import { ProbeAnswer, answerSessionProbe } from '../../../testing/session-helpers';
 import { Announcer } from '../../core/a11y/announcer';
-import { FullPageLoad } from '../../core/browser/full-page-load';
 import { Login } from './login';
 
 @Component({ template: '<h1>Your offers</h1>' })
@@ -19,10 +18,7 @@ class JoinStub {}
 const UNREACHABLE = "We can't reach OfferShield right now. Try again in a minute.";
 
 describe('Login', () => {
-  let load: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    load = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -35,7 +31,6 @@ describe('Login', () => {
           ],
           withComponentInputBinding(),
         ),
-        { provide: FullPageLoad, useValue: { load } },
       ],
     });
   });
@@ -56,9 +51,10 @@ describe('Login', () => {
     return page.querySelector('a[href="/oauth2/authorization/google"]');
   }
 
-  function retryButton(page: HTMLElement): HTMLButtonElement | undefined {
-    return Array.from(page.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'Try again',
+  /** A plain link (no routerLink): the browser loads `next` from the server, starting the app again. */
+  function retryLink(page: HTMLElement): HTMLAnchorElement | undefined {
+    return Array.from(page.querySelectorAll('a')).find(
+      (anchor) => anchor.textContent?.trim() === 'Try again',
     );
   }
 
@@ -124,27 +120,31 @@ describe('Login', () => {
     expect(page.textContent).toContain(UNREACHABLE);
     expect(TestBed.inject(Announcer).message()).toBe(UNREACHABLE);
     expect(signInLink(page)).toBeNull();
-    expect(retryButton(page)).toBeDefined();
+    expect(retryLink(page)).toBeDefined();
   });
 
-  it('retry_reloadsNextPage', async () => {
+  it('retry_isFullPageLoadOfNext', async () => {
     const page = await openLogin('unreachable', '/login?unreachable=1&next=%2Fjoin%3Fref%3Dmail');
 
-    retryButton(page)!.click();
+    expect(retryLink(page)?.getAttribute('href')).toBe('/join?ref=mail');
+  });
 
-    expect(load).toHaveBeenCalledExactlyOnceWith('/join?ref=mail');
+  it('retry_withoutNext_loadsStartPage', async () => {
+    const page = await openLogin('unreachable');
+
+    expect(retryLink(page)?.getAttribute('href')).toBe('/');
   });
 
   it.each([
     ['protocol-relative', '%2F%2Fevil.example%2Fjoin'],
     ['absolute', 'https%3A%2F%2Fevil.example%2Fjoin'],
+    ['script', 'javascript%3Aalert(1)'],
     ['backslash', '%2F%5Cevil.example'],
-  ])('retry_%sNext_reloadsStartPageInstead', async (_label, next) => {
+    ['tab', '%2F%09%2Fevil.example'],
+  ])('retry_%sNext_loadsStartPageInstead', async (_label, next) => {
     const page = await openLogin('unreachable', `/login?unreachable=1&next=${next}`);
 
-    retryButton(page)!.click();
-
-    expect(load).toHaveBeenCalledExactlyOnceWith('/');
+    expect(retryLink(page)?.getAttribute('href')).toBe('/');
   });
 
   it.each([

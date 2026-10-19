@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, input, untracked } from '@angular/
 import { Router } from '@angular/router';
 import { Announcer } from '../../core/a11y/announcer';
 import { Session } from '../../core/auth/session';
-import { FullPageLoad, sameOriginPath } from '../../core/browser/full-page-load';
+import { sameOriginPath } from '../../core/browser/full-page-load';
 import { Notice } from '../../shared/ui/notice';
 
 const LOGIN_FAILED = "Sign-in didn't complete. Try again.";
@@ -14,7 +14,7 @@ const UNREACHABLE = "We can't reach OfferShield right now. Try again in a minute
  * `/oauth2/authorization/google`, never an HttpClient call. Query flags, set by authGuard and
  * the 401 interceptor: `login=failed` (Google sign-in failed or was cancelled), `session=ended`
  * (an API call answered 401), `unreachable=1&next=/path` (the server didn't answer; "Try again"
- * reloads `next`). Signed-in users are sent on to `next` or /app.
+ * is a plain link that loads `next` from the server). Signed-in users go on to `next` or /app.
  */
 @Component({
   selector: 'app-login',
@@ -37,7 +37,8 @@ const UNREACHABLE = "We can't reach OfferShield right now. Try again in a minute
         <app-notice tone="warn"
           ><p>{{ unreachableMessage }}</p></app-notice
         >
-        <button type="button" class="button" (click)="retry()">Try again</button>
+        <!-- A plain link, not routerLink: the browser loads the page again from the server. -->
+        <a class="button" [href]="retryPath()">Try again</a>
       }
       @default {
         @if (loginFailed()) {
@@ -100,9 +101,10 @@ export class Login {
 
   private readonly announcer = inject(Announcer);
   private readonly router = inject(Router);
-  private readonly fullPageLoad = inject(FullPageLoad);
-  /** `next` only if it stays on this site. */
+  /** `next` only if it stays on this site (no open redirect). */
   private readonly safeNext = computed(() => sameOriginPath(this.next()));
+  /** "Try again" starts the app again from the server at the page the user asked for. */
+  protected readonly retryPath = computed(() => this.safeNext() ?? '/');
 
   constructor() {
     // The shell (App) loads the session; this page only reads it.
@@ -127,10 +129,5 @@ export class Login {
         untracked(() => void this.router.navigateByUrl(target, { replaceUrl: true }));
       }
     });
-  }
-
-  /** Starts the app again from the server at the page the user asked for. */
-  protected retry(): void {
-    this.fullPageLoad.load(this.safeNext() ?? '/');
   }
 }
