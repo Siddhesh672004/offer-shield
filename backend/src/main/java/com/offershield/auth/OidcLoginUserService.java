@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -24,8 +23,8 @@ public class OidcLoginUserService implements OAuth2UserService<OidcUserRequest, 
     private final OidcUserProvisioningService provisioningService;
 
     @Autowired
-    public OidcLoginUserService(OidcUserProvisioningService provisioningService) {
-        this(new OidcUserService(), provisioningService);
+    public OidcLoginUserService(OidcUserProvisioningService provisioningService, GoogleHttpClients googleHttpClients) {
+        this(googleHttpClients.oidcUserService(), provisioningService);
     }
 
     OidcLoginUserService(OAuth2UserService<OidcUserRequest, OidcUser> delegate, OidcUserProvisioningService provisioningService) {

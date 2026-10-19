@@ -4,7 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.PostLoad;
-import jakarta.persistence.PostPersist;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Transient;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -62,7 +62,11 @@ public abstract class BaseEntity implements Persistable<UUID> {
         return newEntity;
     }
 
-    @PostPersist
+    /**
+     * Flips on persist() itself, not at flush: with an assigned id the INSERT (and {@code @PostPersist}) waits for the
+     * flush, and until then Spring Data would treat the entity as new and silently skip {@code delete()}.
+     */
+    @PrePersist
     @PostLoad
     void markNotNew() {
         this.newEntity = false;

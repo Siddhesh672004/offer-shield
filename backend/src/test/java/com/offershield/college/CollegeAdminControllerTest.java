@@ -99,6 +99,15 @@ class CollegeAdminControllerTest extends IntegrationTest {
     }
 
     @Test
+    void nonAdmin_invalidBody_403NotValidationDetails() throws Exception {
+        mockMvc.perform(post("/api/admin/colleges").with(signedIn(Role.USER)).with(xsrf(mockMvc))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"\",\"city\":\"\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
+    }
+
+    @Test
     void nonAdmin_403() throws Exception {
         UUID collegeId = createCollege(token + " Guarded College");
 

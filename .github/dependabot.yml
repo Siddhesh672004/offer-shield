@@ -8,14 +8,24 @@ updates:
     directory: /frontend
     schedule:
       interval: weekly
+  # Base images (JDK, node, nginx) and compose images (mysql 8.4 LTS, kafka, caddy) move major versions only
+  # deliberately, through a planned upgrade; Dependabot proposes minor and patch updates.
   - package-ecosystem: docker
-    directory: /backend
+    directories:
+      - /backend
+      - /frontend
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:

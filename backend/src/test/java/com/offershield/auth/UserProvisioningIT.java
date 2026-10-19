@@ -4,29 +4,32 @@ import com.offershield.college.College;
 import com.offershield.college.CollegeRepository;
 import com.offershield.college.CollegeSummary;
 import com.offershield.common.web.NotFoundException;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.mysql.MySQLContainer;
+import org.springframework.test.context.TestPropertySource;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.IntFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Provisioning and /me logic against real MySQL 8.4: transactions, FKs, audit row and assignment deletion. */
-@SpringBootTest(properties = "offershield.admin.emails=it.admin@example.com")
-@Testcontainers
-class UserProvisioningIT {
+@TestPropertySource(properties = "offershield.admin.emails=it.admin@example.com")
+class UserProvisioningIT extends IntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static MySQLContainer mysql = new MySQLContainer("mysql:8.4");
+    /** Concurrent sign-ins per race test; stays below the default Hikari pool size of 10. */
+    private static final int RACERS = 6;
 
     @Autowired
     private OidcUserProvisioningService provisioning;
@@ -112,8 +115,71 @@ class UserProvisioningIT {
     }
 
     @Test
+    void provision_emailEqualOnlyUnderAccentInsensitiveCollation_staysUserAndAssignmentRemains() {
+        College college = colleges.saveAndFlush(College.create("Accent IT College", null));
+        AppUser assigner = users.saveAndFlush(AppUser.create("it-sub-assigner-3", "assigner3@example.com", true, null));
+        assignments.saveAndFlush(TpoAssignment.create("josé.it@example.com", college.getId(), assigner.getId()));
+
+        ProvisionedUser result = provisioning.provision(new OidcIdentity("it-sub-accent", "jose.it@example.com", true, "Test Jose"));
+
+        assertThat(result.role()).isEqualTo(Role.USER);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tpo_assignment WHERE college_id = ?", Integer.class,
+                uuidBytes(college.getId()))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_log WHERE actor_id = ?", Integer.class,
+                uuidBytes(result.userId()))).isZero();
+    }
+
+    @Test
+    void provision_concurrentFirstSignInsWithOneSub_allSucceedOnOneRow() throws Exception {
+        List<ProvisionedUser> results = concurrently(RACERS, i -> provisioning.provision(
+                new OidcIdentity("it-sub-race-first", "racer@example.com", true, "Test Racer")));
+
+        assertThat(results).extracting(ProvisionedUser::userId).containsOnly(results.getFirst().userId());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_user WHERE google_sub = 'it-sub-race-first'",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void provision_concurrentSignInsForOneAssignment_exactlyOneBecomesTpo() throws Exception {
+        College college = colleges.saveAndFlush(College.create("Race IT College", null));
+        AppUser assigner = users.saveAndFlush(AppUser.create("it-sub-assigner-4", "assigner4@example.com", true, null));
+        assignments.saveAndFlush(TpoAssignment.create("race.tpo@example.com", college.getId(), assigner.getId()));
+
+        List<ProvisionedUser> results = concurrently(RACERS, i -> provisioning.provision(
+                new OidcIdentity("it-sub-race-tpo-" + i, "race.tpo@example.com", true, "Test Racer")));
+
+        assertThat(results).filteredOn(result -> result.role() == Role.TPO).hasSize(1);
+        assertThat(results).filteredOn(result -> result.role() == Role.USER).hasSize(RACERS - 1);
+        assertThat(jdbc.queryForObject(
+                "SELECT COUNT(*) FROM audit_log WHERE action = 'TPO_ASSIGNMENT_CONSUMED' AND target_id = ?",
+                Integer.class, uuidBytes(college.getId()))).isEqualTo(1);
+        assertThat(assignments.findByEmail("race.tpo@example.com")).isEmpty();
+    }
+
+    @Test
     void me_unknownUser_notFound() {
         assertThatThrownBy(() -> meService.me(UUID.randomUUID())).isInstanceOf(NotFoundException.class);
+    }
+
+    /** Runs {@code task} on {@code threads} threads released at the same instant; any failure fails the test. */
+    private static <T> List<T> concurrently(int threads, IntFunction<T> task) throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        try (ExecutorService pool = Executors.newFixedThreadPool(threads)) {
+            List<Future<T>> futures = new ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                int index = i;
+                futures.add(pool.submit(() -> {
+                    start.await();
+                    return task.apply(index);
+                }));
+            }
+            start.countDown();
+            List<T> results = new ArrayList<>();
+            for (Future<T> future : futures) {
+                results.add(future.get(60, TimeUnit.SECONDS));
+            }
+            return results;
+        }
     }
 
     private static byte[] uuidBytes(UUID id) {

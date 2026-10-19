@@ -8,7 +8,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -80,8 +83,91 @@ class LoggingAspectTest {
         assertThat(appender.list).allSatisfy(event -> assertThat(event.getThrowableProxy()).isNull());
     }
 
+    @Test
+    void restController_loggedWithClassAndMethod() {
+        proxy(new SampleController()).handle(ARG_MARKER);
+
+        assertThat(lines()).singleElement().satisfies(line -> assertThat(line)
+                .contains("call=SampleController.handle")
+                .contains("outcome=ok")
+                .doesNotContain(ARG_MARKER));
+    }
+
+    @Test
+    void kafkaListenerMethod_loggedWithClassAndMethod() {
+        proxy(new SampleListener()).onMessage(ARG_MARKER);
+
+        assertThat(lines()).singleElement().satisfies(line -> assertThat(line)
+                .contains("call=SampleListener.onMessage")
+                .contains("outcome=ok")
+                .doesNotContain(ARG_MARKER));
+    }
+
+    @Test
+    void kafkaListenerFailure_loggedAsClassOnly_rethrown() {
+        SampleListener listener = proxy(new SampleListener());
+
+        assertThatThrownBy(() -> listener.onPoison(ERR_MARKER)).isInstanceOf(IllegalStateException.class);
+
+        assertThat(lines()).singleElement().satisfies(line -> assertThat(line)
+                .contains("call=SampleListener.onPoison")
+                .contains("outcome=error error=IllegalStateException")
+                .doesNotContain(ERR_MARKER));
+    }
+
+    @Test
+    void nonListenerMethodOfListenerBean_notLogged() {
+        proxy(new SampleListener()).helper();
+
+        assertThat(lines()).isEmpty();
+    }
+
+    @Test
+    void plainComponent_notLogged() {
+        proxy(new SampleComponent()).work();
+
+        assertThat(lines()).isEmpty();
+    }
+
+    private static <T> T proxy(T target) {
+        AspectJProxyFactory factory = new AspectJProxyFactory(target);
+        factory.setProxyTargetClass(true);
+        factory.addAspect(new LoggingAspect());
+        return factory.getProxy();
+    }
+
     private List<String> lines() {
         return appender.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
+    }
+
+    @RestController
+    static class SampleController {
+
+        String handle(String value) {
+            return "RET-" + value;
+        }
+    }
+
+    static class SampleListener {
+
+        @KafkaListener(topics = "sample.topic")
+        void onMessage(String payload) {
+        }
+
+        @KafkaListener(topics = "sample.poison")
+        void onPoison(String payload) {
+            throw new IllegalStateException(payload);
+        }
+
+        void helper() {
+        }
+    }
+
+    @Component
+    static class SampleComponent {
+
+        void work() {
+        }
     }
 
     @Service

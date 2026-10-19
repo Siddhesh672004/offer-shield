@@ -13,14 +13,12 @@ import com.offershield.college.CollegeStatus;
 import com.offershield.college.CollegeSummary;
 import com.offershield.common.audit.AuditLog;
 import com.offershield.common.audit.AuditLogRepository;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.mysql.MySQLContainer;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
 
@@ -30,13 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Proves the JPA entities match the Flyway schema on MySQL 8.4 ({@code ddl-auto=validate} would stop the context
  * otherwise) and that UUIDs are stored as BINARY(16).
  */
-@SpringBootTest(properties = "offershield.admin.emails=Admin@Example.com, second.admin@example.com")
-@Testcontainers
-class EntityMappingIT {
-
-    @Container
-    @ServiceConnection
-    static MySQLContainer mysql = new MySQLContainer("mysql:8.4");
+@TestPropertySource(properties = "offershield.admin.emails=Admin@Example.com, second.admin@example.com")
+class EntityMappingIT extends IntegrationTest {
 
     @Autowired
     private CollegeRepository colleges;
@@ -52,6 +45,8 @@ class EntityMappingIT {
     private AdminProperties adminProperties;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @Test
     void college_saved_readBackWithVersionAndBinaryId() {
@@ -113,6 +108,20 @@ class EntityMappingIT {
         assignments.delete(found);
         assignments.flush();
         assertThat(assignments.findByEmail("new.tpo@example.com")).isEmpty();
+    }
+
+    /** Spring Data skips delete() for an entity it thinks is new, so "new" must flip when persist() runs, not at flush. */
+    @Test
+    void entity_createdAndDeletedInOneTransaction_rowRemoved() {
+        College college = transactionTemplate.execute(status -> {
+            College created = colleges.save(College.create("Create Delete Same Tx College", null));
+            colleges.delete(created);
+            return created;
+        });
+
+        assertThat(colleges.findById(college.getId())).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM college WHERE name = 'Create Delete Same Tx College'",
+                Integer.class)).isZero();
     }
 
     @Test

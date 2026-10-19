@@ -1,6 +1,7 @@
 package com.offershield.common.logging;
 
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -9,6 +10,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestIdFilterTest {
 
@@ -36,6 +38,21 @@ class RequestIdFilterTest {
         filter.doFilter(request, new MockHttpServletResponse(), capturingChain);
 
         assertThat(seenRequestId.get()).isNotEqualTo("evil\nINJECT").matches(UUID_PATTERN);
+    }
+
+    @Test
+    void chainThrows_mdcClearedAndExceptionPropagates() {
+        FilterChain throwingChain = (request, response) -> {
+            seenRequestId.set(MDC.get(LogContext.REQUEST_ID));
+            throw new ServletException("chain failed");
+        };
+
+        assertThatThrownBy(() -> filter.doFilter(new MockHttpServletRequest("GET", "/api/ping"),
+                new MockHttpServletResponse(), throwingChain))
+                .isInstanceOf(ServletException.class);
+
+        assertThat(seenRequestId.get()).matches(UUID_PATTERN);
+        assertThat(MDC.get(LogContext.REQUEST_ID)).isNull();
     }
 
     @Test
