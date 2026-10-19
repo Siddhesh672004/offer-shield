@@ -155,10 +155,11 @@
   - `GET /api/colleges?q=` returns at most 20 results.
   - `GET /api/admin/colleges` lists colleges with their TPO emails.
 - **Tests:** `CollegeAdminControllerTest` (`nonAdmin_403`, `assignExistingUser_promoted`, `assignNewEmail_pending`, `audited`)
+- **Status:** ✅ Done 2026-10-20 on `phase/p03-p04-colleges-shell` (evidence in 05 §7; live Google/SMTP checks wait for secrets).
 
 ### P3-02 · Join request, TPO decision, email
 - **PRD:** §3.1 C, §4 F2, F9, §13.8 · **Decisions:** D-22, D-33.3, D-33.7, R-E · **Est:** 1.5 h
-- **Files:** `membership/Membership.java` (`V5__membership.sql`), `MembershipController.java`, `MembershipService.java`, `notification/EmailService.java` (Spring Mail, sent after commit; failures logged)
+- **Files:** `membership/Membership.java` (`V6__create_membership.sql`), `MembershipController.java`, `MembershipService.java`, `notification/EmailService.java` (Spring Mail, sent after commit; failures logged)
 - **Acceptance:**
   - `POST /api/memberships {collegeId, rollNo, department}` → PENDING. An existing PENDING or APPROVED request → 409. A rejected student may re-apply.
   - `GET /api/memberships/pending` (TPO): own college only.
@@ -171,6 +172,7 @@
   - `MembershipDecisionTest`: `approve_ok_emailSent_audited`, `staleVersion_409`, `otherCollege_404`, `rejectWithoutReason_400`, `rejectedCanReapply`
   - `EmailServiceTest.smtpFailure_loggedDecisionKept`
 - **Verify:** `backend/mvnw -B -f backend/pom.xml verify`; run the flow manually with curl and a test Gmail inbox.
+- **Status:** ✅ Done 2026-10-20 on `phase/p03-p04-colleges-shell` (evidence in 05 §7; live Google/SMTP checks wait for secrets).
 
 **Checkpoint P3:** the membership state machine; what `If-Match` prevents; why the email is sent after commit.
 
@@ -193,6 +195,7 @@
   - `inlineCritical: false`; self-hosted fonts.
 - **Tests:** `auth.guard.spec`, `role.guard.spec`, `unauthorized.interceptor.spec`
 - **Verify:** `cd frontend && npm ci && npx ng test --watch=false && npx ng build` · `grep -r "innerHTML" frontend/src` (no matches)
+- **Status:** ✅ Done 2026-10-20 on `phase/p03-p04-colleges-shell` (evidence in 05 §7; live Google/SMTP checks wait for secrets).
 
 ### P4-02 · Login, Choose path, Join college
 - **Est:** 1.0 h
@@ -203,6 +206,7 @@
   - Join college shows PENDING and handles 409.
 - **Tests:** `join-college.spec` (`submit_showsPending`, `409_showsExisting`)
 - **Verify:** click through at `http://localhost`.
+- **Status:** ✅ Done 2026-10-20 on `phase/p03-p04-colleges-shell` (evidence in 05 §7; live Google/SMTP checks wait for secrets).
 
 **Checkpoint (end of Day-1 scope):** the OAuth flow; how CSRF works with Angular; guards vs server checks.
 

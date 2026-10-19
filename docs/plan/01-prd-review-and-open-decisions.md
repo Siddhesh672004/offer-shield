@@ -78,6 +78,8 @@ These are low-stakes defaults. The phase prompt asks you about each one before a
 
 **Answers (2026-10-20, P2):** M-04 → 4 h session (recommended default; `server.servlet.session.timeout: 4h`). Google client ID/secret and `ADMIN_EMAILS` are deferred by the user until after all phases; until then the app starts with `GOOGLE_CLIENT_ID=not-configured` and the live sign-in checks are recorded as not executed.
 
+**Answers (2026-10-20, P3/P4):** M-05 → nginx container (`nginxinc/nginx-unprivileged`, non-root, port 8080) behind Caddy, matching PRD/02 §1. SMTP credentials are deferred with the other secrets; until then `EmailService` logs "email skipped: SMTP not configured" and decisions still commit.
+
 ## 4. Rules that follow directly from the PRD (no choice involved; listed for transparency)
 
 | ID | Rule | PRD source |
