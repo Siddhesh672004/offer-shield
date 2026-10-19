@@ -42,7 +42,7 @@ Planning is complete. Implementation runs **one phase at a time** using the prom
 
 Where a `spring-boot-3-skills:*` skill conflicts with Boot 4 APIs, **the official Boot 4 docs win.**
 
-## Layout (confirm M-01/M-02 at P1)
+## Layout (M-01/M-02 confirmed at P1)
 
 ```
 backend/   one Maven module, com.offershield.{auth, college, membership, submission, analysis, ai,
@@ -132,7 +132,7 @@ docker-compose.yml · docker-compose.prod.yml · Caddyfile · .env.example · lo
 ## Commands (once code exists)
 
 ```bash
-mvn -B -f backend/pom.xml verify
+backend/mvnw -B -f backend/pom.xml verify
 docker compose up -d --build && docker compose ps
 cd frontend && npm ci && npx ng test --watch=false && npx ng build
 ```

@@ -47,7 +47,7 @@
 
 ## 2. First milestone (M1) — acceptance criteria
 
-1. `mvn -B -f backend/pom.xml verify` is green.
+1. `backend/mvnw -B -f backend/pom.xml verify` is green.
 2. `docker compose up -d --build` → caddy, app, mysql and kafka are all `healthy`.
 3. Only Caddy publishes a port (`127.0.0.1:80`); `docker compose port app 8080` prints nothing.
 4. Flyway applied `V1__baseline` on `mysql:8.4` (proves V-25).

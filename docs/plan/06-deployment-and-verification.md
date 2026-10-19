@@ -33,7 +33,7 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
 
 | Step | Command | Expected |
 |---|---|---|
-| Backend tests | `mvn -B -f backend/pom.xml verify` | Green (Docker must be running for Testcontainers) |
+| Backend tests | `backend/mvnw -B -f backend/pom.xml verify` | Green (Docker must be running for Testcontainers) |
 | Start | `docker compose up -d --build` | All containers `healthy` (`docker compose ps`) |
 | Open | `http://localhost` | Angular app; "Sign in with Google" works |
 | App logs | `tail -f logs/offershield.log` | `requestId`, `class.method` and duration only; no personal data |

@@ -122,4 +122,20 @@
 
 | Date | Phase/Task | Command or proof ID | Executed? | Passed? | Evidence |
 |---|---|---|---|---|---|
-| | | | | | |
+| 2026-10-19 | P1-01 | `backend/mvnw -B -f backend/pom.xml verify` | Yes | Yes | `BUILD SUCCESS`: 14 unit tests + 2 integration tests, 0 failures, 0 errors |
+| 2026-10-19 | P1-03 | `LoggingAspectTest` (`logsMethodAndDuration`, `neverLogsArguments`, `neverLogsReturnValue`, `exception_loggedAsClassOnly_rethrown`) | Yes | Yes | 4/4; marker strings absent from the captured log |
+| 2026-10-19 | P1-03 | `RequestIdFilterTest` (MDC + header, incoming header ignored, MDC cleared) | Yes | Yes | 3/3 |
+| 2026-10-19 | P1-03 | `ProblemDetailExceptionHandlerTest` (404, 409, 422, 500 without internals, 500 logs class only, unknown path) | Yes | Yes | 6/6; `application/problem+json` |
+| 2026-10-19 | P1-03 | `PingControllerTest` | Yes | Yes | 1/1; `X-Request-Id` header present |
+| 2026-10-19 | P1-03 · V-25 | `FlywayMigrationIT` on `mysql:8.4` (Testcontainers) | Yes | Yes | 2/2; `VERSION()` 8.4; "Successfully applied 2 migrations to schema `test`, now at version v2"; duplicate `processed_event` key rejected |
+| 2026-10-19 | P1-02 | `docker compose up -d --build` + `docker compose ps` | Yes | Yes | app, caddy, kafka, mysql all `(healthy)` |
+| 2026-10-19 | P1-02 · S-02 | `docker compose port app 8080` | Yes | Yes (by intent) | Compose v5.1.4 printed `invalid IP:0` (exit 0) instead of nothing. The port is not published, shown three ways: `docker port offershield-app-1` prints nothing; `docker compose ps` shows app `8080/tcp` with no host binding; `curl -m 3 http://localhost:8080` → exit 7. Only Caddy has `127.0.0.1:80->80/tcp` |
+| 2026-10-19 | P1-02 | `curl http://localhost/api/ping` / `curl http://localhost/actuator/health` (through Caddy) | Yes | Yes | `200 {"status":"up"}` / `404` (actuator not routed) |
+| 2026-10-19 | P1-02 · S-09 (part) | Inside the app container: `/actuator/health`, `/actuator/env` | Yes | Yes | `{"status":"UP"}` / `404` |
+| 2026-10-19 | P1-02 | Kafka broker config (`server.properties`) | Yes | Yes | `auto.create.topics.enable=false`, `log.retention.hours=72`, `log.dirs=/var/lib/kafka/data` |
+| 2026-10-19 | P1-02 | `SHOW GRANTS` as `offershield_app` | Yes | Yes | `SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER ON offershield_db.*` only; app container runs as uid 10001 |
+| 2026-10-19 | P1-03 · V-25 | Flyway in the compose stack (`docker compose logs app`) | Yes | Yes | "Database: jdbc:mysql://mysql:3306/offershield_db (MySQL 8.4)" · "Successfully applied 2 migrations to schema `offershield_db`, now at version v2" |
+| 2026-10-19 | P1-03 | `grep requestId logs/offershield.log` | Yes | Yes | `requestId=7b193f01-9b57-42ca-98ff-8e1168001589 userId=- submissionId=- … call=PingController.ping durationMs=0 outcome=ok` |
+| 2026-10-19 | P1-01 · S-10 (part) | `git check-ignore .env` | Yes | Yes | prints `.env` |
+| 2026-10-19 | P1-01 | CI workflow (build + gitleaks) and Dependabot files exist | Yes | Yes | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
+| 2026-10-19 | P1-01 · S-10 (part) | CI run + gitleaks on GitHub | No | — | No GitHub remote yet (M1 item 6: CI runs once a remote exists) |

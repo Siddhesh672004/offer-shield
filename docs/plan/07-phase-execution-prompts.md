@@ -40,7 +40,7 @@ Scope: tasks P1-01, P1-02, P1-03 in docs/plan/04-work-breakdown.md only.
 Read: PRD §5.5, §9, §14.6, §14.7, §15; docs/plan/02 §1, §2, §4, §10; decisions D-01, D-16, D-23, D-27, D-32.
 Skills: spring-boot-3-skills:layered-architecture, spring-boot-3-skills:flyway-migrations, spring-boot-3-skills:problem-details-rfc9457, spring-boot-3-skills:configuration-properties.
 Tests first: LoggingAspectTest (logsMethodAndDuration, neverLogsArguments), ProblemDetailExceptionHandlerTest.
-Verify: mvn -B -f backend/pom.xml verify; docker compose up -d --build; docker compose ps (all healthy); docker compose port app 8080 prints nothing; Flyway "Successfully applied" on mysql:8.4; grep requestId logs/offershield.log; git check-ignore .env.
+Verify: backend/mvnw -B -f backend/pom.xml verify; docker compose up -d --build; docker compose ps (all healthy); docker compose port app 8080 prints nothing; Flyway "Successfully applied" on mysql:8.4; grep requestId logs/offershield.log; git check-ignore .env.
 Stop if: Flyway fails on MySQL 8.4 (D-32: stop and ask).
 Done when: milestone M1 in docs/plan/03 §2 — every item evidenced in docs/plan/05 §7.
 ```
@@ -55,7 +55,7 @@ Scope: P2-01, P2-02, P2-03 only.
 Read: PRD §3, §6.1, §12 (XSRF), §13.6, §14.1, §14.2, §14.7; docs/plan/02 §6; decisions D-02, D-10, D-12, D-21; rules R-C, R-D, R-E.
 Skills: spring-boot-3-skills:problem-details-rfc9457, spring-boot-3-skills:configuration-properties, spring-boot-3-skills:testing-pyramid. Use the official Spring Security 7 reference for oauth2Login and csrf(c -> c.spa()).
 Tests first: OidcUserProvisioningServiceTest, LoginRedirectTest, SessionCookieTest, ApiUnauthenticatedTest, CsrfTest, SecurityHeadersTest, UserRateLimitFilterTest.
-Verify: mvn -B -f backend/pom.xml verify; sign in at http://localhost/oauth2/authorization/google; /api/auth/me shows your role; proofs S-01, S-02, S-04, S-08, S-09 recorded.
+Verify: backend/mvnw -B -f backend/pom.xml verify; sign in at http://localhost/oauth2/authorization/google; /api/auth/me shows your role; proofs S-01, S-02, S-04, S-08, S-09 recorded.
 Stop if: PKCE/nonce missing from the redirect; an unverified email gets ADMIN/TPO.
 ```
 
@@ -68,7 +68,7 @@ Scope: P3-01, P3-02 only (manual join only — D-17).
 Read: PRD §3, §3.1 (path C), §4 F2, F9, §11 (identity rows), §13.8; decisions D-02, D-17, D-22, D-33.3, D-33.7; rule R-E.
 Skills: spring-boot-3-skills:layered-architecture, spring-boot-3-skills:transactional-patterns, spring-boot-3-skills:flyway-migrations, spring-boot-3-skills:problem-details-rfc9457.
 Tests first: CollegeAdminControllerTest, MembershipDecisionTest, EmailServiceTest.
-Verify: mvn -B -f backend/pom.xml verify; journey J2 with curl (approve with If-Match; stale → 409); email received.
+Verify: backend/mvnw -B -f backend/pom.xml verify; journey J2 with curl (approve with If-Match; stale → 409); email received.
 ```
 
 ## P4 — Angular shell (→ M3)
@@ -95,7 +95,7 @@ Scope: P5-01 … P5-05 only.
 Read: PRD §4 F3, §6.2, §6.3, §9.1, §10 (submission), §10.1 (AES-GCM), §13.3, §13.4, §14.4; docs/plan/02 §3, §5; decisions D-05, D-12, D-20, D-28, D-33.1, D-33.2, D-33.6.
 Skills: spring-boot-3-skills:idempotency-patterns, spring-boot-3-skills:transactional-patterns, spring-boot-3-skills:event-driven-messaging, spring-boot-3-skills:flyway-migrations, spring-boot-3-skills:testing-pyramid.
 Tests first: IdempotencyKeyTest, UploadLimitTest, SubmissionAccessTest, FileValidatorTest, TextCipherTest, CloudinaryStoreTest, SubmissionServiceTest, SubmissionEventPublisherTest, QueuedSubmissionSweeperTest.
-Verify: mvn -B -f backend/pom.xml verify; upload via http://localhost → 202; the event is visible on submission.created (no letter text); V-10 Cloudinary check recorded; proofs S-03 (submission part), S-06, S-12.
+Verify: backend/mvnw -B -f backend/pom.xml verify; upload via http://localhost → 202; the event is visible on submission.created (no letter text); V-10 Cloudinary check recorded; proofs S-03 (submission part), S-06, S-12.
 Stop if: letter text appears in Kafka, logs or unencrypted in the DB.
 ```
 
@@ -109,7 +109,7 @@ Scope: P6-01 … P6-07 only (no AI, no registry matching yet).
 Read: PRD §2.1, §6.2, §6.3, §7, §7.1 (C1, C2, C5, C6, C8, C9), §7.2, §10 (report/signal), §13.4, §13.5, §13.7, §14.5; docs/plan/02 §5, §8; decisions D-09, D-14, D-19, D-20, D-28, D-31.
 Skills: spring-boot-3-skills:event-driven-messaging, spring-boot-3-skills:idempotency-patterns, spring-boot-3-skills:http-interface-clients, spring-boot-3-skills:testing-pyramid.
 Tests first: SubmissionCreatedListenerTest, MoneyRequestCheckTest, FreeMailSenderCheckTest, OffPlatformContactCheckTest, PressureLanguageCheckTest, DomainValidatorTest, RdapClientTest, YoungDomainCheckTest, MailSetupCheckTest, ScoringEngineTest, SubmissionStatusListenerTest, ReportAccessTest, AnalysisServiceTest.
-Verify: mvn -B -f backend/pom.xml verify; the deposit-letter fixture → High with C1 evidence; status READY through analysis.completed; proof S-05; drill F-05.
+Verify: backend/mvnw -B -f backend/pom.xml verify; the deposit-letter fixture → High with C1 evidence; status READY through analysis.completed; proof S-05; drill F-05.
 Done when: milestone M4.
 ```
 
@@ -122,7 +122,7 @@ Scope: P7-01, P7-02, P7-03 (P7-03 is cut #1 only if I say so).
 Read: PRD §7 (AI never creates evidence), §8 (all), §15; decisions D-06, D-07, D-11, D-30; rule R-A; verification V-06, V-07, V-09.
 Skills: spring-boot-3-skills:http-interface-clients, spring-boot-3-skills:testing-pyramid.
 Tests first: LlmChainTest, RedactorTest, ProviderRequestRedactionTest, ExtractionResultParsingTest, LlmCacheTest, PromptInjectionTest, AnalysisServiceTest.aiEmpty_partialAiUsedFalse, ExplainServiceTest.
-Verify: mvn -B -f backend/pom.xml verify; a real Groq call fills AI-extracted fields; drill F-01 (bad key → "AI unavailable"); measure the tokens used per call and record them (closes V-09).
+Verify: backend/mvnw -B -f backend/pom.xml verify; a real Groq call fills AI-extracted fields; drill F-01 (bad key → "AI unavailable"); measure the tokens used per call and record them (closes V-09).
 ```
 
 ## P8 — Known companies and lookalikes (→ M5)
@@ -134,7 +134,7 @@ Scope: P8-01, P8-02.
 Read: PRD §4 F8, §7.1 C3/C4, §11 (known-companies row); decisions D-03, D-24.
 Skills: spring-boot-3-skills:layered-architecture, spring-boot-3-skills:flyway-migrations.
 Tests first: KnownCompanyControllerTest, LookalikeDomainCheckTest, CompanyDomainMismatchCheckTest.
-Verify: mvn -B -f backend/pom.xml verify; the inf0sys-careers.com fixture is flagged; journey J6.
+Verify: backend/mvnw -B -f backend/pom.xml verify; the inf0sys-careers.com fixture is flagged; journey J6.
 Done when: milestone M5.
 ```
 
@@ -147,7 +147,7 @@ Scope: P9-01 … P9-04.
 Read: PRD §5.3, §7.1 C10–C12, §7.2, §7.3, §10 (registry tables), §10.1 (HMAC, SimHash); docs/plan/02 §5, §7; decisions D-08, D-18, D-20, D-33.5; rules R-A, R-B.
 Skills: spring-boot-3-skills:event-driven-messaging, spring-boot-3-skills:flyway-migrations, spring-boot-3-skills:testing-pyramid.
 Tests first: ReportSnapshotListenerTest, IndicatorHasherTest, SimHashTest, MatchServiceIT, IndicatorFactoryTest, CopiedLetterGuardTest, NearDuplicateCheckTest, ConfirmedIndicatorCheckTest, UnverifiedReportsCheckTest.
-Verify: mvn -B -f backend/pom.xml verify; a scam confirmed (via test data) at user A is flagged for user B.
+Verify: backend/mvnw -B -f backend/pom.xml verify; a scam confirmed (via test data) at user A is flagged for user B.
 ```
 
 ## P10 — Scam reports, reviews, PDF links (→ M6)
@@ -160,7 +160,7 @@ Scope: P10-01 … P10-05.
 Read: PRD §4 F5, F6, F9, §6.4, §6.5, §9.1, §11 (registry rows), §13.8, §14.3, §14.6; docs/plan/02 §7; decisions D-04, D-05, D-08, D-12, D-13, D-22, D-33.4, D-33.5, D-33.7; rule R-E.
 Skills: spring-boot-3-skills:transactional-patterns, spring-boot-3-skills:problem-details-rfc9457, spring-boot-3-skills:flyway-migrations.
 Tests first: ScamReportAccessTest, ScamReportServiceTest, ScamReportDecisionTest, RevertTest, ReviewDecisionConcurrencyTest, ReviewScopeTest, ReviewDecisionTest, PdfLinkAccessTest.
-Verify: mvn -B -f backend/pom.xml verify; journeys J3, J4, J5 with curl; emails received; drill F-06; proof S-03 (report + PDF link parts), S-07.
+Verify: backend/mvnw -B -f backend/pom.xml verify; journeys J3, J4, J5 with curl; emails received; drill F-06; proof S-03 (report + PDF link parts), S-07.
 Done when: milestone M6.
 ```
 
@@ -173,7 +173,7 @@ Scope: P11-01.
 Read: PRD F10, §6.3, §9.1, §14.6; decision D-06.
 Skills: spring-boot-3-skills:transactional-patterns.
 Tests first: RetentionJobTest.
-Verify: mvn -B -f backend/pom.xml verify; run the job against rows with expires_at set in the past (test profile) and confirm the Cloudinary file is gone.
+Verify: backend/mvnw -B -f backend/pom.xml verify; run the job against rows with expires_at set in the past (test profile) and confirm the Cloudinary file is gone.
 ```
 
 ## P12 — Angular screens
@@ -198,7 +198,7 @@ Preconditions: P12 verified.
 Scope: P13-01, P13-02; fix only defects found (each with a failing test first).
 Read: docs/plan/05 (all); PRD §14, §18.
 Skills/agents: superpowers:verification-before-completion; run /security-review on the branch; run the pr-review-toolkit agents code-reviewer, silent-failure-hunter and pr-test-analyzer on the diff from main; handle findings with superpowers:receiving-code-review.
-Verify: mvn -B -f backend/pom.xml verify; frontend tests + build; every test in 05 §2 present and passing; S-01…S-12 and F-01…F-06 run, with evidence in 05 §7.
+Verify: backend/mvnw -B -f backend/pom.xml verify; frontend tests + build; every test in 05 §2 present and passing; S-01…S-12 and F-01…F-06 run, with evidence in 05 §7.
 Done when: milestone M7. Do not deploy with any mandatory test failing.
 ```
 

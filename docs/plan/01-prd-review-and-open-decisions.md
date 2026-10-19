@@ -74,6 +74,8 @@ These are low-stakes defaults. The phase prompt asks you about each one before a
 | M-09 | Container memory limits | App 1 GB (heap 60 %), MySQL 1.5 GB, Kafka 1 GB, Caddy + nginx 128 MB (≈ 3.7 GB of 12 GB) | P14 |
 | M-10 | Render backup runbook (PRD §16.4, demo-day backup) | Not needed for v1: the fallback is "any ~4 GB Linux VM with the same compose file". Alternative: write a short Render + Aiven runbook (docs only) | P14 |
 
+**Answers (2026-10-19, P1):** M-01, M-02, M-03 → the recommended defaults. Extra item: Maven isn't installed on the dev PC, so builds use the **Maven Wrapper** (`backend/mvnw`, Maven 3.9.16, SHA-256 pinned); every `mvn` command in the plan is now `backend/mvnw`. From P1 on, the user asked for no further permission questions: remaining M-items take their recommended default and are recorded here.
+
 ## 4. Rules that follow directly from the PRD (no choice involved; listed for transparency)
 
 | ID | Rule | PRD source |
@@ -149,7 +151,7 @@ These are low-stakes defaults. The phase prompt asks you about each one before a
 | V-22 | Angular | 22.2.3; LTS to 2028-06; Node `^22.22.3 ‖ ^24.15 ‖ ≥26` | Verified | https://angular.dev/reference/releases |
 | V-23 | Groq terms | No training on API data; up to 30-day logs unless Zero Data Retention; multiple accounts banned | Verified | https://console.groq.com/docs/your-data |
 | V-24 | Groq usable from India | **Unverified.** The user checks when signing up (D-30) | Pending (user) | — |
-| V-25 | Flyway + MySQL 8.4 | Not on Redgate's list. **Prove it at P1** (D-32) | Pending (P1) | https://documentation.red-gate.com/fd/supported-databases-and-versions-143754067.html |
+| V-25 | Flyway + MySQL 8.4 | Not on Redgate's list. **Proved at P1 (2026-10-19):** Flyway 12.4.0 "Successfully applied 2 migrations" on `mysql:8.4` (Testcontainers IT and the compose stack) | Verified | https://documentation.red-gate.com/fd/supported-databases-and-versions-143754067.html |
 | V-26 | Library versions | PDFBox 3.0.8; tika-core 3.3.3; dnsjava 3.6.5; commons-text 1.15.0; `cloudinary-http5` 2.5.0; Bucket4j (pin at P2); Testcontainers 2.x | Verified (Bucket4j at P2) | https://repo1.maven.org/maven2/ |
 
 V-02, V-04, V-08 and V-17 (gateway, Redis, Cerebras, Render/Aiven) no longer apply after D-16, D-12, D-11 and D-23.

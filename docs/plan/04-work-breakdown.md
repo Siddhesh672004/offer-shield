@@ -67,9 +67,10 @@
 
 ### P1-01 · Repository skeleton, CI, Dependabot
 - **Decisions:** D-01, D-27, M-01, M-02 · **Est:** 1.0 h
-- **Files:** `.gitignore` (`.env`, `logs/`, `target/`, `node_modules/`, `dist/`, `.angular/`); `.env.example` (names only); `backend/pom.xml` (Boot 4.1 parent; Java 21); `backend/src/main/java/com/offershield/OfferShieldApplication.java`; `.github/workflows/ci.yml` (JDK 21 `mvn -B -f backend/pom.xml verify`, gitleaks on full history; frontend job added in P4); `.github/dependabot.yml` (maven, npm, docker, github-actions).
-- **Acceptance:** `mvn -B -f backend/pom.xml verify` is green.
-- **Verify:** `mvn -B -f backend/pom.xml verify` · `git check-ignore .env`
+- **Files:** `.gitignore` (`.env`, `logs/`, `target/`, `node_modules/`, `dist/`, `.angular/`); `.env.example` (names only); `backend/pom.xml` (Boot 4.1 parent; Java 21); `backend/src/main/java/com/offershield/OfferShieldApplication.java`; `.github/workflows/ci.yml` (JDK 21 `backend/mvnw -B -f backend/pom.xml verify`, gitleaks on full history; frontend job added in P4); `.github/dependabot.yml` (maven, npm, docker, github-actions).
+- **Acceptance:** `backend/mvnw -B -f backend/pom.xml verify` is green.
+- **Verify:** `backend/mvnw -B -f backend/pom.xml verify` · `git check-ignore .env`
+- **Status:** ✅ Done 2026-10-19 on `phase/p01-foundation` (evidence in 05 §7).
 
 ### P1-02 · Docker Compose (MySQL 8.4, Kafka, Caddy, app)
 - **Decisions:** D-16, D-23, D-32, M-03 · **Est:** 1.25 h
@@ -79,16 +80,18 @@
   - Healthchecks on every service; `depends_on: service_healthy`.
   - **Only Caddy publishes a port** (`127.0.0.1:80:80`). MySQL, Kafka and the app are internal.
 - **Verify:** `docker compose up -d --build && docker compose ps` (all healthy; the app's healthcheck calls `/actuator/health` inside its container) · `docker compose port app 8080` prints nothing (not published) · `curl -s -o /dev/null -w "%{http_code}" http://localhost/actuator/health` does **not** reach the app (Caddy only routes `/api`, `/oauth2` and `/login`).
+- **Status:** ✅ Done 2026-10-19 on `phase/p01-foundation` (evidence in 05 §7).
 
 ### P1-03 · Common basics: ProblemDetail, AOP logging, Flyway on 8.4
 - **Decisions:** D-27, D-32 · **Est:** 1.25 h
-- **Files:** `common/web/ProblemDetailExceptionHandler.java` (+ `NotFoundException`, `ConflictException`, `UnprocessableException`); `common/logging/LoggingAspect.java` (`@Around` on `@RestController`, `@Service` and `@KafkaListener` beans); `common/logging/RequestIdFilter.java` (MDC `requestId`); `logback-spring.xml` (console + `logs/offershield.log`, daily rolling, `maxHistory` 14); `db/migration/V1__baseline.sql` (`audit_log`, `processed_event`); `application.yml` (actuator `health` only, ProblemDetails enabled).
+- **Files:** `common/web/ProblemDetailExceptionHandler.java` (+ `NotFoundException`, `ConflictException`, `UnprocessableException`); `common/logging/LoggingAspect.java` (`@Around` on `@RestController`, `@Service` and `@KafkaListener` beans); `common/logging/RequestIdFilter.java` (MDC `requestId`); `logback-spring.xml` (console + `logs/offershield.log`, daily rolling, `maxHistory` 14); `db/migration/V1__baseline.sql` (`audit_log`) + `V2__create_processed_event.sql` (one DDL change per file); `application.yml` (actuator `health` only, ProblemDetails enabled).
 - **Acceptance:**
   - Flyway applies V1 on `mysql:8.4` (**proves V-25**; on failure, stop and ask, per D-32).
   - One request writes log lines with `requestId`, `class.method` and `durationMs` to `logs/offershield.log`.
   - Method arguments never appear.
 - **Tests:** `LoggingAspectTest`: `logsMethodAndDuration`, `neverLogsArguments` (calls with a marker string; asserts the marker is absent from the captured log); `ProblemDetailExceptionHandlerTest` (404, 409, 422, 500 without internals).
-- **Verify:** `mvn -B -f backend/pom.xml verify`; `docker compose up -d --build`; `grep requestId logs/offershield.log`.
+- **Verify:** `backend/mvnw -B -f backend/pom.xml verify`; `docker compose up -d --build`; `grep requestId logs/offershield.log`.
+- **Status:** ✅ Done 2026-10-19 on `phase/p01-foundation` (evidence in 05 §7).
 
 **Checkpoint P1:** What does each container do? Why is only Caddy published? What does the AOP aspect log, and what does it refuse to log?
 
@@ -132,7 +135,7 @@
   - Headers: CSP `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'`; HSTS (prod profile); nosniff; Referrer-Policy.
   - The 61st request within a minute from one user → 429.
 - **Tests:** `CsrfTest` (`postWithoutToken_403`, `postWithToken_ok`, `getIssuesXsrfCookie`), `SecurityHeadersTest`, `UserRateLimitFilterTest` (`61stRequest_429`, `twoUsers_separateBuckets`)
-- **Verify:** `mvn -B -f backend/pom.xml verify`. Then sign in at `http://localhost/oauth2/authorization/google` and check that `/api/auth/me` shows your role.
+- **Verify:** `backend/mvnw -B -f backend/pom.xml verify`. Then sign in at `http://localhost/oauth2/authorization/google` and check that `/api/auth/me` shows your role.
 
 **Checkpoint P2:** the OAuth Authorization Code flow; session cookie vs CSRF token; why there are no identity headers; 404 vs 403.
 
@@ -164,7 +167,7 @@
 - **Tests:**
   - `MembershipDecisionTest`: `approve_ok_emailSent_audited`, `staleVersion_409`, `otherCollege_404`, `rejectWithoutReason_400`, `rejectedCanReapply`
   - `EmailServiceTest.smtpFailure_loggedDecisionKept`
-- **Verify:** `mvn -B -f backend/pom.xml verify`; run the flow manually with curl and a test Gmail inbox.
+- **Verify:** `backend/mvnw -B -f backend/pom.xml verify`; run the flow manually with curl and a test Gmail inbox.
 
 **Checkpoint P3:** the membership state machine; what `If-Match` prevents; why the email is sent after commit.
 
@@ -258,7 +261,7 @@
 - **Tests:**
   - `SubmissionEventPublisherTest`: `rolledBack_noSend`, `committed_sendsDeterministicId`
   - `QueuedSubmissionSweeperTest`: `stale_republished`, `fresh_skipped`, `backoffDoubles`, `cap_marksFailed`
-- **Verify:** `mvn -B -f backend/pom.xml verify`; upload via `http://localhost`; read one message from `submission.created` with `kafka-console-consumer.sh`.
+- **Verify:** `backend/mvnw -B -f backend/pom.xml verify`; upload via `http://localhost`; read one message from `submission.created` with `kafka-console-consumer.sh`.
 
 **Checkpoint P5:** the idempotency key; publish after commit and what the sweeper fixes; GCM IV and AAD.
 
@@ -550,7 +553,7 @@
 
 ### P13-01 · All mandatory tests green
 - **Est:** 1.0 h
-- **Acceptance:** every test in [05 §2](05-testing-and-security-plan.md) exists and passes; `mvn verify` and the frontend tests are green; results logged in 05 §7, with executed and passed kept separate.
+- **Acceptance:** every test in [05 §2](05-testing-and-security-plan.md) exists and passes; `backend/mvnw verify` and the frontend tests are green; results logged in 05 §7, with executed and passed kept separate.
 
 ### P13-02 · Security proofs
 - **Est:** 1.0 h
