@@ -58,16 +58,13 @@ public class MembershipService {
         }
         CollegeSummary college = collegeService.findActiveSummary(request.collegeId())
                 .orElseThrow(() -> new NotFoundException("College not found"));
-        String rollNo = request.rollNo().trim();
-        String department = request.department().trim();
-
         Optional<Membership> existing = memberships.findByUserId(userId);
         Membership membership;
         if (existing.isEmpty()) {
-            membership = Membership.request(userId, college.id(), rollNo, department);
+            membership = Membership.request(userId, college.id(), request.rollNo(), request.department());
         } else if (existing.get().getStatus() == MembershipStatus.REJECTED) {
             membership = existing.get();
-            membership.reapply(college.id(), rollNo, department);
+            membership.reapply(college.id(), request.rollNo(), request.department());
         } else {
             throw new MembershipExistsException();
         }
