@@ -31,6 +31,20 @@ const pendingRequest: Membership = {
 };
 
 const notFound = { status: 404, statusText: 'Not Found' };
+const serverError = { status: 500, statusText: 'Internal Server Error' };
+const unauthorized = { status: 401, statusText: 'Unauthorized' };
+
+/** The search API's maximum (P3 contract: max 20). */
+const twentyColleges: CollegeOption[] = Array.from({ length: 20 }, (_, index) => ({
+  id: `00000000-0000-0000-0000-0000000001${String(index).padStart(2, '0')}`,
+  name: `Fake College ${index + 1}`,
+  city: null,
+}));
+
+interface Reply {
+  readonly body: object;
+  readonly status?: { status: number; statusText: string };
+}
 
 describe('JoinCollege', () => {
   let http: HttpTestingController;
@@ -49,19 +63,27 @@ describe('JoinCollege', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  async function openJoinPage(existing: Membership | null = null): Promise<void> {
+  async function openJoinPageWith(mine: Reply, colleges: Reply): Promise<void> {
     await answerSessionProbe(fakeStudent);
     fixture = TestBed.createComponent(JoinCollege);
-    const mine = http.expectOne('/api/memberships/me');
-    if (existing) {
-      mine.flush(existing);
-    } else {
-      mine.flush({ status: 404, errorCode: 'NOT_FOUND' }, notFound);
-    }
+    http.expectOne('/api/memberships/me').flush(mine.body, mine.status);
     http
       .expectOne((request) => request.url === '/api/colleges')
-      .flush([collegeOfCommerce, instituteOfTechnology]);
-    await fixture.whenStable();
+      .flush(colleges.body, colleges.status);
+    await settle();
+  }
+
+  async function openJoinPage(existing: Membership | null = null): Promise<void> {
+    await openJoinPageWith(
+      existing
+        ? { body: existing }
+        : { body: { status: 404, errorCode: 'NOT_FOUND' }, status: notFound },
+      { body: [collegeOfCommerce, instituteOfTechnology] },
+    );
+  }
+
+  function announced(): string {
+    return TestBed.inject(Announcer).message();
   }
 
   function type(selector: string, value: string): void {
@@ -136,9 +158,101 @@ describe('JoinCollege', () => {
     await settle();
 
     expect(page().textContent).toContain('You already have a join request.');
+    expect(page().textContent).toContain(
+      'You can send a new request if your TPO rejects this one.',
+    );
     expect(page().querySelector('.request-status')?.textContent).toContain('Approved');
     expect(page().textContent).toContain('Fake College of Commerce');
     expect(page().querySelector('#roll-no')).toBeNull();
+  });
+
+  it('submit_movesFocusToRequestHeading', async () => {
+    await openJoinPage();
+
+    await fillAndSend();
+    http
+      .expectOne('/api/memberships')
+      .flush(pendingRequest, { status: 201, statusText: 'Created' });
+    (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush(fakeStudent);
+    await settle();
+
+    const heading = page().querySelector<HTMLElement>('#request-heading');
+    expect(heading?.getAttribute('tabindex')).toBe('-1');
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it('409_movesFocusToRequestHeading', async () => {
+    await openJoinPage();
+
+    await fillAndSend();
+    http
+      .expectOne('/api/memberships')
+      .flush(
+        { status: 409, errorCode: 'MEMBERSHIP_EXISTS' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    (await vi.waitFor(() => http.expectOne('/api/memberships/me'))).flush(pendingRequest);
+    (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush(fakeStudent);
+    await settle();
+
+    expect(document.activeElement?.id).toBe('request-heading');
+  });
+
+  it('sessionEnded401OnSend_showsAndAnnouncesNoFailure', async () => {
+    await openJoinPage();
+
+    await fillAndSend();
+    http.expectOne('/api/memberships').flush({ status: 401 }, unauthorized);
+    await settle();
+
+    expect(page().querySelector('app-notice')).toBeNull();
+    expect(announced()).toBe('');
+  });
+
+  it('sessionEnded401OnOpen_showsAndAnnouncesNoFailure', async () => {
+    await openJoinPageWith(
+      { body: { status: 401 }, status: unauthorized },
+      { body: { status: 401 }, status: unauthorized },
+    );
+
+    expect(page().querySelector('app-notice')).toBeNull();
+    expect(page().textContent).not.toContain("Couldn't load colleges");
+    expect(announced()).toBe('');
+  });
+
+  it('membershipCheckFails_warnsAndAnnounces', async () => {
+    await openJoinPageWith(
+      { body: { status: 500 }, status: serverError },
+      { body: [collegeOfCommerce, instituteOfTechnology] },
+    );
+
+    const warning = page().querySelector('app-notice');
+    expect(warning?.textContent).toContain("We couldn't check your existing request. Try again.");
+    expect(announced()).toBe("We couldn't check your existing request. Try again.");
+    expect(page().querySelector('#roll-no')).not.toBeNull();
+  });
+
+  it('collegesFail_showsAndAnnounces', async () => {
+    await openJoinPageWith(
+      { body: { status: 404 }, status: notFound },
+      { body: { status: 500 }, status: serverError },
+    );
+
+    expect(page().textContent).toContain("Couldn't load colleges. Search again.");
+    expect(announced()).toBe("Couldn't load colleges. Search again.");
+  });
+
+  it('twentyColleges_saysOnlyTheFirst20AreShown', async () => {
+    await openJoinPageWith({ body: { status: 404 }, status: notFound }, { body: twentyColleges });
+
+    expect(page().querySelectorAll('input[type="radio"]').length).toBe(20);
+    expect(page().textContent).toContain('Showing the first 20 — search to narrow the list.');
+  });
+
+  it('fewerThan20Colleges_noCapNote', async () => {
+    await openJoinPage();
+
+    expect(page().textContent).not.toContain('Showing the first 20');
   });
 
   it('403EmailNotConfirmed_explainsWithoutClaimingVerification', async () => {

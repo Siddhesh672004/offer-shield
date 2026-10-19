@@ -162,6 +162,12 @@
   color: var(--color-ink-soft);
 }
 
+.colleges__note {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+}
+
 .input--short {
   max-width: 16rem;
 }

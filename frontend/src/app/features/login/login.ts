@@ -51,7 +51,8 @@ const UNREACHABLE = "We can't reach OfferShield right now. Try again in a minute
         }
         <a class="button" href="/oauth2/authorization/google">Sign in with Google</a>
         <p class="fine-print login__note">
-          We use your Google account only to sign you in. OfferShield never sees your Google password.
+          We use your Google account only to sign you in. OfferShield never sees your Google
+          password.
         </p>
       }
     }

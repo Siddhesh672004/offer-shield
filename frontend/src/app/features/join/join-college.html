@@ -3,17 +3,23 @@
 @if (loading()) {
   <p class="lead">Loading your join request…</p>
 } @else {
+  @if (membershipCheckFailed()) {
+    <app-notice tone="warn"
+      ><p>{{ membershipCheckFailedMessage }}</p></app-notice
+    >
+  }
+
   @if (membership(); as request) {
     @if (alreadyRequested()) {
       <app-notice tone="info">
         <p>
-          You already have a join request. You can send a new one only if this one isn't approved.
+          You already have a join request. You can send a new request if your TPO rejects this one.
         </p>
       </app-notice>
     }
 
     <section class="request" aria-labelledby="request-heading">
-      <h2 id="request-heading">Your join request</h2>
+      <h2 id="request-heading" tabindex="-1">Your join request</h2>
       <p class="request-status" [class]="'request-status request-status--' + request.status">
         <svg class="request-status__shape" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <circle cx="12" cy="12" r="9" />
@@ -108,7 +114,7 @@
       >
         <legend class="field__label">Your college</legend>
         @if (collegesFailed()) {
-          <p class="field__error">Couldn't load colleges. Search again.</p>
+          <p class="field__error">{{ collegesFailedMessage }}</p>
         } @else {
           @for (college of colleges(); track college.id) {
             <label class="college-option">
@@ -131,6 +137,11 @@
                 No colleges use OfferShield yet. Ask your TPO to contact the OfferShield admin.
               </p>
             }
+          }
+          @if (listCapped()) {
+            <p class="colleges__note">
+              Showing the first {{ collegeLimit }} — search to narrow the list.
+            </p>
           }
         }
         @if (collegeError(); as message) {

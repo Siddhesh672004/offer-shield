@@ -22,7 +22,7 @@ import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { Announcer } from '../../core/a11y/announcer';
 import { Session } from '../../core/auth/session';
-import { problemCode, problemDetail } from '../../core/http/problem';
+import { isSessionEnded, problemCode, problemDetail } from '../../core/http/problem';
 import { Notice } from '../../shared/ui/notice';
 import { CollegeOption, Membership, MembershipApi } from './membership-api';
 
@@ -31,6 +31,11 @@ const STATUS_LABELS: Record<Membership['status'], string> = {
   APPROVED: 'Approved',
   REJECTED: 'Not approved',
 };
+
+/** `GET /api/colleges` returns at most this many (P3 contract). */
+const COLLEGE_LIMIT = 20;
+const MEMBERSHIP_CHECK_FAILED = "We couldn't check your existing request. Try again.";
+const COLLEGES_FAILED = "Couldn't load colleges. Search again.";
 
 /** `required` plus "not only spaces", with one message for both. */
 function filledIn(path: SchemaPath<string>, message: string): void {
@@ -48,7 +53,7 @@ function firstError(state: FieldState<string>): string | null {
 /**
  * /join: pick a college, give roll number and department, and send a request the TPO
  * approves or rejects (D-17). A student has one request at a time; after a rejection they
- * may send a new one (D-33.3).
+ * may send a new one (D-33.3). A 401 shows nothing here: the interceptor opens the login page.
  */
 @Component({
   selector: 'app-join-college',
@@ -64,14 +69,20 @@ export class JoinCollege {
   private readonly injector = inject(Injector);
 
   protected readonly statusLabels = STATUS_LABELS;
+  protected readonly collegeLimit = COLLEGE_LIMIT;
+  protected readonly membershipCheckFailedMessage = MEMBERSHIP_CHECK_FAILED;
+  protected readonly collegesFailedMessage = COLLEGES_FAILED;
   protected readonly loading = signal(true);
   protected readonly membership = signal<Membership | null>(null);
+  protected readonly membershipCheckFailed = signal(false);
   protected readonly alreadyRequested = signal(false);
   protected readonly showForm = computed(
     () => !this.loading() && (this.membership()?.status ?? 'REJECTED') === 'REJECTED',
   );
 
   protected readonly colleges = signal<CollegeOption[]>([]);
+  /** The search answered with its maximum, so more colleges may match. */
+  protected readonly listCapped = computed(() => this.colleges().length >= COLLEGE_LIMIT);
   protected readonly searchedFor = signal('');
   protected readonly searching = signal(false);
   protected readonly collegesFailed = signal(false);
@@ -123,8 +134,12 @@ export class JoinCollege {
   private async loadMembership(): Promise<void> {
     try {
       this.membership.set(await firstValueFrom(this.api.myMembership()));
-    } catch {
-      // Show the form; if a request already exists, sending it answers 409 and we show that.
+    } catch (error) {
+      // The form stays; if a request already exists, sending it answers 409 and we show that.
+      if (!isSessionEnded(error)) {
+        this.membershipCheckFailed.set(true);
+        this.announcer.announce(MEMBERSHIP_CHECK_FAILED);
+      }
     } finally {
       this.loading.set(false);
     }
@@ -148,9 +163,12 @@ export class JoinCollege {
             : `${found.length} ${found.length === 1 ? 'college' : 'colleges'} found.`,
         );
       }
-    } catch {
+    } catch (error) {
       this.colleges.set([]);
-      this.collegesFailed.set(true);
+      if (!isSessionEnded(error)) {
+        this.collegesFailed.set(true);
+        this.announcer.announce(COLLEGES_FAILED);
+      }
     } finally {
       this.searching.set(false);
     }
@@ -164,10 +182,15 @@ export class JoinCollege {
         this.api.requestToJoin({ collegeId, rollNo: rollNo.trim(), department: department.trim() }),
       );
       this.membership.set(created);
+      this.membershipCheckFailed.set(false);
       this.alreadyRequested.set(false);
       this.announcer.announce('Join request sent. Status: pending.');
+      this.focusRequestHeading();
       void this.session.refresh();
     } catch (error) {
+      if (isSessionEnded(error)) {
+        return;
+      }
       if (problemCode(error) === 'MEMBERSHIP_EXISTS') {
         await this.showExistingRequest();
       } else {
@@ -184,12 +207,24 @@ export class JoinCollege {
         return;
       }
       this.membership.set(existing);
+      this.membershipCheckFailed.set(false);
       this.alreadyRequested.set(true);
       this.announcer.announce('You already have a join request.');
+      this.focusRequestHeading();
       void this.session.refresh();
-    } catch {
-      this.fail(GENERIC_FAILURE);
+    } catch (error) {
+      if (!isSessionEnded(error)) {
+        this.fail(GENERIC_FAILURE);
+      }
     }
+  }
+
+  /** The submit button just disappeared with the form, so put focus on the request shown instead. */
+  private focusRequestHeading(): void {
+    afterNextRender(
+      () => this.host.nativeElement.querySelector<HTMLElement>('#request-heading')?.focus(),
+      { injector: this.injector },
+    );
   }
 
   /** After a rejected submit, put focus on the first field that needs attention. */
