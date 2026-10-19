@@ -27,6 +27,10 @@ final class MembershipFixtures {
         return colleges.saveAndFlush(College.create(label + " College " + UUID.randomUUID(), "Pune")).getId();
     }
 
+    String collegeName(UUID collegeId) {
+        return colleges.findById(collegeId).orElseThrow().getName();
+    }
+
     UUID student() {
         return student(true);
     }
