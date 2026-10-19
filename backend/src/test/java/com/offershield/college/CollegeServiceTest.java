@@ -38,4 +38,20 @@ class CollegeServiceTest {
 
         assertThat(service.findSummary(unknown)).isEmpty();
     }
+
+    @Test
+    void findActiveSummary_activeCollege_returnsSummary() {
+        College college = College.create("Active College", "Nagpur");
+        when(repository.findById(college.getId())).thenReturn(Optional.of(college));
+
+        assertThat(service.findActiveSummary(college.getId())).contains(new CollegeSummary(college.getId(), "Active College"));
+    }
+
+    @Test
+    void findActiveSummary_unknownCollege_empty() {
+        UUID unknown = UUID.randomUUID();
+        when(repository.findById(unknown)).thenReturn(Optional.empty());
+
+        assertThat(service.findActiveSummary(unknown)).isEmpty();
+    }
 }

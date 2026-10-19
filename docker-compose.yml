@@ -1,10 +1,15 @@
 name: offershield
 
-# Only Caddy publishes a port (127.0.0.1:80). The app, MySQL and Kafka stay on the internal network.
+# Only Caddy publishes a port (127.0.0.1:80). Two networks: "edge" (Caddy, app, frontend) and
+# "internal" (app, MySQL, Kafka; no outbound internet). Caddy cannot reach MySQL or Kafka.
 services:
   caddy:
     image: caddy:2.11.7-alpine
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
     ports:
       - "127.0.0.1:80:80"
     environment:
@@ -27,6 +32,11 @@ services:
       context: ./backend
     image: offershield-app:local
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - edge
+      - internal
     environment:
       DB_URL: jdbc:mysql://mysql:3306/offershield_db
       DB_USERNAME: offershield_app
@@ -35,6 +45,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not-configured}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
       LOG_DIR: /app/logs
     volumes:
       - ./logs:/app/logs
@@ -53,8 +65,13 @@ services:
   mysql:
     image: mysql:8.4
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is not set in .env}
+      MYSQL_ROOT_HOST: localhost
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in .env}
     volumes:
       - mysql-data:/var/lib/mysql
@@ -69,6 +86,10 @@ services:
   kafka:
     image: apache/kafka:4.3.1
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - internal
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -98,3 +119,8 @@ volumes:
   kafka-data:
   caddy-data:
   caddy-config:
+
+networks:
+  edge:
+  internal:
+    internal: true

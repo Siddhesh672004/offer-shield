@@ -20,4 +20,12 @@ public class CollegeService {
     public Optional<CollegeSummary> findSummary(UUID collegeId) {
         return repository.findById(collegeId).map(college -> new CollegeSummary(college.getId(), college.getName()));
     }
+
+    /** Only ACTIVE colleges accept join requests. */
+    @Transactional(readOnly = true)
+    public Optional<CollegeSummary> findActiveSummary(UUID collegeId) {
+        return repository.findById(collegeId)
+                .filter(college -> college.getStatus() == CollegeStatus.ACTIVE)
+                .map(college -> new CollegeSummary(college.getId(), college.getName()));
+    }
 }
