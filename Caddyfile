@@ -1,5 +1,5 @@
-# Only Caddy is published. Locally SITE_ADDRESS defaults to http://localhost (M-03);
-# production sets it to the DuckDNS name for automatic HTTPS (P14).
+# Only Caddy is published. SITE_ADDRESS comes from APP_DOMAIN in .env: empty locally → http://localhost (M-03);
+# production sets APP_DOMAIN to the DuckDNS name for automatic HTTPS (P14).
 {$SITE_ADDRESS:http://localhost} {
 	@app path /api/* /oauth2/* /login/*
 	handle @app {

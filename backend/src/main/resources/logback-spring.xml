@@ -22,7 +22,10 @@
         </encoder>
     </appender>
 
-    <!-- Hibernate logs raw SQL error text (e.g. "Duplicate entry 'x@gmail.com'"); the exception still propagates. -->
+    <!-- Hibernate logs raw SQL error/warning text (e.g. "Duplicate entry 'x@gmail.com'"); the exception still propagates.
+         Hibernate 7 uses the org.hibernate.orm.jdbc.* categories; the old class name is kept for safety. -->
+    <logger name="org.hibernate.orm.jdbc.error" level="OFF"/>
+    <logger name="org.hibernate.orm.jdbc.warn" level="OFF"/>
     <logger name="org.hibernate.engine.jdbc.spi.SqlExceptionHelper" level="OFF"/>
 
     <root level="INFO">

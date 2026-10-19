@@ -8,7 +8,7 @@ services:
     ports:
       - "127.0.0.1:80:80"
     environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:-http://localhost}
+      SITE_ADDRESS: ${APP_DOMAIN:-http://localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

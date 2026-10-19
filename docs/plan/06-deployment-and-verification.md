@@ -54,7 +54,7 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
    - **Don't enable UFW** (Oracle warns it can break booting).
    - Check with `sudo iptables -L INPUT -n --line-numbers`.
 3. **Docker:** install Docker Engine + the Compose plugin from Docker's apt repo (arm64), then `docker run --rm hello-world`.
-4. **Code and secrets:** `git clone`; create `.env` on the VM with `chmod 600`. Never commit it.
+4. **Code and secrets:** `git clone`; create `.env` on the VM with `chmod 600`. Never commit it. Create the log folder for the non-root app user (uid 10001 in `backend/Dockerfile`), or file logging is silently lost: `mkdir -p logs && sudo chown 10001:10001 logs`.
 5. **Domain:** create a free DuckDNS subdomain pointing at the VM's public IP.
 6. **Build and start:**
    - `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`. The build runs on the VM, so it's arm64.
