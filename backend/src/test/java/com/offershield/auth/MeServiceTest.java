@@ -17,6 +17,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -42,11 +43,63 @@ class MeServiceTest {
         CollegeSummary college = new CollegeSummary(collegeId, "Example Institute of Technology");
         when(users.findById(tpo.getId())).thenReturn(Optional.of(tpo));
         when(collegeService.findSummary(collegeId)).thenReturn(Optional.of(college));
-        when(membershipService.findForUser(tpo.getId())).thenReturn(Optional.empty());
 
         MeResponse me = service.me(tpo.getId());
 
         assertThat(me).isEqualTo(new MeResponse(tpo.getId(), "Test TPO", "tpo@example.com", Role.TPO, college, "NONE"));
+    }
+
+    /** A student who later became TPO still has their old join request row; /me must not report it. */
+    @Test
+    void tpo_withOldStudentMembership_statusNoneAndTpoCollege() {
+        UUID tpoCollegeId = UUID.randomUUID();
+        AppUser tpo = AppUser.create("sub-tpo-2", "tpo2@example.com", true, "Test TPO");
+        tpo.assignTpoCollege(tpoCollegeId);
+        tpo.changeRole(Role.TPO);
+        CollegeSummary college = new CollegeSummary(tpoCollegeId, "Example Institute of Technology");
+        when(users.findById(tpo.getId())).thenReturn(Optional.of(tpo));
+        when(collegeService.findSummary(tpoCollegeId)).thenReturn(Optional.of(college));
+        lenient().when(membershipService.findForUser(tpo.getId()))
+                .thenReturn(Optional.of(membership(UUID.randomUUID(), MembershipStatus.APPROVED)));
+
+        MeResponse me = service.me(tpo.getId());
+
+        assertThat(me.membershipStatus()).isEqualTo("NONE");
+        assertThat(me.college()).isEqualTo(college);
+        verifyNoInteractions(membershipService);
+    }
+
+    @Test
+    void admin_withMembershipRow_statusNoneNoCollege() {
+        AppUser admin = AppUser.create("sub-admin", "admin@example.com", true, "Test Admin");
+        admin.changeRole(Role.ADMIN);
+        when(users.findById(admin.getId())).thenReturn(Optional.of(admin));
+        lenient().when(membershipService.findForUser(admin.getId()))
+                .thenReturn(Optional.of(membership(UUID.randomUUID(), MembershipStatus.PENDING)));
+
+        MeResponse me = service.me(admin.getId());
+
+        assertThat(me.role()).isEqualTo(Role.ADMIN);
+        assertThat(me.membershipStatus()).isEqualTo("NONE");
+        assertThat(me.college()).isNull();
+        verifyNoInteractions(membershipService, collegeService);
+    }
+
+    @Test
+    void admin_assignedToCollege_collegeShownStatusNone() {
+        UUID collegeId = UUID.randomUUID();
+        AppUser admin = AppUser.create("sub-admin-2", "admin2@example.com", true, "Test Admin");
+        admin.changeRole(Role.ADMIN);
+        admin.assignTpoCollege(collegeId);
+        CollegeSummary college = new CollegeSummary(collegeId, "Example Institute of Technology");
+        when(users.findById(admin.getId())).thenReturn(Optional.of(admin));
+        when(collegeService.findSummary(collegeId)).thenReturn(Optional.of(college));
+
+        MeResponse me = service.me(admin.getId());
+
+        assertThat(me.college()).isEqualTo(college);
+        assertThat(me.membershipStatus()).isEqualTo("NONE");
+        verifyNoInteractions(membershipService);
     }
 
     @Test
@@ -108,7 +161,6 @@ class MeServiceTest {
         tpo.changeRole(Role.TPO);
         when(users.findById(tpo.getId())).thenReturn(Optional.of(tpo));
         when(collegeService.findSummary(collegeId)).thenReturn(Optional.empty());
-        when(membershipService.findForUser(tpo.getId())).thenReturn(Optional.empty());
 
         assertThat(service.me(tpo.getId()).college()).isNull();
     }
