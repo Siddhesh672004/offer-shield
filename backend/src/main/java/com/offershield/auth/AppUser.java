@@ -7,12 +7,18 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.util.UUID;
 
-/** A Google account that has signed in. The row is keyed on the OIDC {@code sub}; the email is display/matching data only. */
+/**
+ * A Google account that has signed in. The row is keyed on the OIDC {@code sub}; the email is display/matching data
+ * only. {@code @DynamicUpdate}: the table has no version column, so an UPDATE writes only the columns that changed; a
+ * sign-in that read the row before an admin's TPO promotion committed then can't write the old role/college back.
+ */
 @Entity
 @Table(name = "app_user")
+@DynamicUpdate
 public class AppUser extends BaseEntity {
 
     @Column(name = "google_sub", nullable = false, updatable = false, length = 255)
