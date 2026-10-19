@@ -3,6 +3,7 @@ package com.offershield.college;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,5 +28,15 @@ public class CollegeService {
         return repository.findById(collegeId)
                 .filter(college -> college.getStatus() == CollegeStatus.ACTIVE)
                 .map(college -> new CollegeSummary(college.getId(), college.getName()));
+    }
+
+    /** ACTIVE colleges whose name contains {@code query} (case-insensitive), ordered by name, at most 20. */
+    @Transactional(readOnly = true)
+    public List<CollegeSearchItem> search(String query) {
+        String text = query == null ? "" : query.trim();
+        return repository.findTop20ByStatusAndNameContainingIgnoreCaseOrderByNameAsc(CollegeStatus.ACTIVE, text)
+                .stream()
+                .map(CollegeSearchItem::from)
+                .toList();
     }
 }
