@@ -1,6 +1,7 @@
 package com.offershield.auth;
 
 import com.offershield.common.logging.LogContext;
+import com.offershield.common.web.ProblemResponseWriter;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +25,8 @@ class UserRateLimitFilterTest {
 
     private static final int LIMIT = 60;
 
-    private final UserRateLimitFilter filter = new UserRateLimitFilter(LIMIT);
+    private final UserRateLimitFilter filter =
+            new UserRateLimitFilter(LIMIT, new ProblemResponseWriter(JsonMapper.builder().build()));
     private final AtomicInteger chainCalls = new AtomicInteger();
     private final FilterChain countingChain = (request, response) -> chainCalls.incrementAndGet();
 

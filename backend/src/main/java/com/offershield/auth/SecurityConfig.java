@@ -1,5 +1,6 @@
 package com.offershield.auth;
 
+import com.offershield.common.web.ProblemResponseWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -31,7 +32,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, OidcLoginUserService oidcLoginUserService,
                                             ProblemDetailAuthenticationEntryPoint authenticationEntryPoint,
-                                            ProblemDetailAccessDeniedHandler accessDeniedHandler) throws Exception {
+                                            ProblemDetailAccessDeniedHandler accessDeniedHandler,
+                                            ProblemResponseWriter problemResponseWriter) throws Exception {
         RequestMatcher api = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
 
         http
@@ -58,7 +60,8 @@ public class SecurityConfig {
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
                         .frameOptions(frame -> frame.deny()))
                 .addFilterAfter(new UserMdcFilter(), AuthorizationFilter.class)
-                .addFilterAfter(new UserRateLimitFilter(REQUESTS_PER_MINUTE), AuthorizationFilter.class);
+                .addFilterAfter(new UserRateLimitFilter(REQUESTS_PER_MINUTE, problemResponseWriter),
+                        AuthorizationFilter.class);
 
         return http.build();
     }
