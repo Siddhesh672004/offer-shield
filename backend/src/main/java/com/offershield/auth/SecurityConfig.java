@@ -10,6 +10,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -39,7 +40,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2Login(login -> login
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcLoginUserService))
-                        .defaultSuccessUrl("/app", true))
+                        .defaultSuccessUrl("/app", true)
+                        .failureUrl("/app?login=failed"))
+                .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .logout(logout -> logout
                         .logoutRequestMatcher(PathPatternRequestMatcher.withDefaults()
                                 .matcher(HttpMethod.POST, "/api/auth/logout"))

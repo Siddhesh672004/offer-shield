@@ -197,6 +197,7 @@
 ### P4-02 · Login, Choose path, Join college
 - **Est:** 1.0 h
 - **Acceptance:**
+- **Contract from P2:** a failed or cancelled Google sign-in redirects to `/app?login=failed`; show a plain "Sign-in didn't complete. Try again." message there.
   - Login is a full-page navigation to `/oauth2/authorization/google`.
   - Choose path: "Join my college" or "Continue on my own".
   - Join college shows PENDING and handles 409.

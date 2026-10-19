@@ -1,6 +1,8 @@
 package com.offershield.auth;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
@@ -14,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -51,6 +54,20 @@ class OidcLoginUserServiceTest {
         service.loadUser(null);
 
         verify(provisioningService).provision(new OidcIdentity("google-sub-2", "nov@example.com", false, "No Verify"));
+    }
+
+    @Test
+    void provisioningFails_oauth2ErrorWithoutCauseOrMessage() {
+        givenGoogleUser(Map.of("sub", "google-sub-3", "email", "dup@example.com", "email_verified", true, "name", "Dup"));
+        when(provisioningService.provision(any()))
+                .thenThrow(new DataIntegrityViolationException("Duplicate entry 'google-sub-3' for key 'uk_app_user_google_sub'"));
+
+        assertThatThrownBy(() -> service.loadUser(null))
+                .isInstanceOfSatisfying(OAuth2AuthenticationException.class, ex -> {
+                    assertThat(ex.getError().getErrorCode()).isEqualTo("provisioning_failed");
+                    assertThat(ex.getCause()).isNull();
+                    assertThat(String.valueOf(ex.getMessage())).doesNotContain("google-sub-3", "dup@example.com");
+                });
     }
 
     private void givenGoogleUser(Map<String, Object> claims) {
