@@ -7,8 +7,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
@@ -40,12 +42,19 @@ public class SecurityConfig {
         return new HttpSessionOAuth2AuthorizedClientRepository();
     }
 
+    /** Spring Security picks this bean up for ID-token validation; its JWKS fetch has the Google timeouts. */
+    @Bean
+    JwtDecoderFactory<ClientRegistration> idTokenDecoderFactory(GoogleHttpClients googleHttpClients) {
+        return googleHttpClients.idTokenDecoderFactory();
+    }
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, OidcLoginUserService oidcLoginUserService,
                                             ProblemDetailAuthenticationEntryPoint authenticationEntryPoint,
                                             ProblemDetailAccessDeniedHandler accessDeniedHandler,
                                             ProblemResponseWriter problemResponseWriter,
-                                            OAuth2AuthorizedClientRepository authorizedClientRepository) throws Exception {
+                                            OAuth2AuthorizedClientRepository authorizedClientRepository,
+                                            GoogleHttpClients googleHttpClients) throws Exception {
         RequestMatcher api = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
 
         http
@@ -54,6 +63,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2Login(login -> login
                         .authorizedClientRepository(authorizedClientRepository)
+                        .tokenEndpoint(token -> token.accessTokenResponseClient(googleHttpClients.tokenResponseClient()))
                         .userInfoEndpoint(userInfo -> userInfo.oidcUserService(oidcLoginUserService))
                         .defaultSuccessUrl("/app", true)
                         .failureUrl("/app?login=failed"))
