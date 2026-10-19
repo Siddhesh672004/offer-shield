@@ -121,6 +121,26 @@ describe('App shell', () => {
     expect(fixture.nativeElement.textContent).toContain("Couldn't sign out. Try again.");
   });
 
+  it('signOutFailed_noticeClearsOnNextNavigation', async () => {
+    const fixture = await createShell(fakeStudent);
+    signOutButton(fixture)!.click();
+    http
+      .expectOne('/api/auth/logout')
+      .flush({ status: 403 }, { status: 403, statusText: 'Forbidden' });
+    await vi.waitFor(() =>
+      expect(TestBed.inject(Announcer).message()).toContain("Couldn't sign out"),
+    );
+
+    expect(fixture.nativeElement.querySelector('main').textContent).toContain("Couldn't sign out");
+
+    await router.navigateByUrl('/tpo');
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('main').textContent).not.toContain(
+      "Couldn't sign out",
+    );
+  });
+
   it('routeChange_movesFocusToHeading', async () => {
     const fixture = await createShell(fakeTpo);
 

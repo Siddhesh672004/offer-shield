@@ -26,13 +26,15 @@ export class App {
   constructor() {
     void this.session.load();
 
+    const navigationEnds = this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      takeUntilDestroyed(),
+    );
+    // A "Couldn't sign out" notice belongs to the page it appeared on.
+    navigationEnds.subscribe(() => this.signOutFailed.set(false));
     // After each route change (not the first page load) move focus to the new page's <h1>.
-    this.router.events
-      .pipe(
-        filter((event) => event instanceof NavigationEnd),
-        skip(1),
-        takeUntilDestroyed(),
-      )
+    navigationEnds
+      .pipe(skip(1))
       .subscribe(() => afterNextRender(() => this.focusHeading(), { injector: this.injector }));
   }
 
