@@ -13,14 +13,11 @@ import com.offershield.college.CollegeStatus;
 import com.offershield.college.CollegeSummary;
 import com.offershield.common.audit.AuditLog;
 import com.offershield.common.audit.AuditLogRepository;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.mysql.MySQLContainer;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.UUID;
 
@@ -30,13 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Proves the JPA entities match the Flyway schema on MySQL 8.4 ({@code ddl-auto=validate} would stop the context
  * otherwise) and that UUIDs are stored as BINARY(16).
  */
-@SpringBootTest(properties = "offershield.admin.emails=Admin@Example.com, second.admin@example.com")
-@Testcontainers
-class EntityMappingIT {
-
-    @Container
-    @ServiceConnection
-    static MySQLContainer mysql = new MySQLContainer("mysql:8.4");
+@TestPropertySource(properties = "offershield.admin.emails=Admin@Example.com, second.admin@example.com")
+class EntityMappingIT extends IntegrationTest {
 
     @Autowired
     private CollegeRepository colleges;

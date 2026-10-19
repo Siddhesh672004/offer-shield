@@ -4,14 +4,11 @@ import com.offershield.college.College;
 import com.offershield.college.CollegeRepository;
 import com.offershield.college.CollegeSummary;
 import com.offershield.common.web.NotFoundException;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.mysql.MySQLContainer;
+import org.springframework.test.context.TestPropertySource;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -20,13 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Provisioning and /me logic against real MySQL 8.4: transactions, FKs, audit row and assignment deletion. */
-@SpringBootTest(properties = "offershield.admin.emails=it.admin@example.com")
-@Testcontainers
-class UserProvisioningIT {
-
-    @Container
-    @ServiceConnection
-    static MySQLContainer mysql = new MySQLContainer("mysql:8.4");
+@TestPropertySource(properties = "offershield.admin.emails=it.admin@example.com")
+class UserProvisioningIT extends IntegrationTest {
 
     @Autowired
     private OidcUserProvisioningService provisioning;
