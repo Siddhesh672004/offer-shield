@@ -34,12 +34,43 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: No innerHTML in the frontend
+        working-directory: ${{ github.workspace }}
+        run: |
+          if grep -rn "innerHTML" frontend/src; then
+            echo "::error::innerHTML found in frontend/src; render text with interpolation instead"
+            exit 1
+          fi
+      # D-10: Caddy (frontend responses) and Spring Security (app responses) send the same CSP.
+      - name: CSP matches (Caddyfile vs SecurityConfig)
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          caddy_csp=$(tr -d '\r' < Caddyfile \
+            | sed -n 's/^[[:space:]]*Content-Security-Policy "\([^"]*\)".*/\1/p')
+          java_csp=$(tr -d '\r' < backend/src/main/java/com/offershield/auth/SecurityConfig.java \
+            | awk '/CONTENT_SECURITY_POLICY[[:space:]]*=/ { found = 1 } found { print } found && /;[[:space:]]*$/ { exit }' \
+            | { grep -o '"[^"]*"' || true; } | sed 's/^"//; s/"$//' | tr -d '\n')
+          echo "Caddyfile:      $caddy_csp"
+          echo "SecurityConfig: $java_csp"
+          if [ -z "$caddy_csp" ] || [ -z "$java_csp" ]; then
+            echo "::error::Could not find the CSP in Caddyfile or SecurityConfig.java"
+            exit 1
+          fi
+          if [ "$caddy_csp" != "$java_csp" ]; then
+            echo "::error::The CSP in Caddyfile differs from SecurityConfig.CONTENT_SECURITY_POLICY (D-10)"
+            exit 1
+          fi
+          echo "CSP matches."
       - name: Install
         run: npm ci
       - name: Test
         run: npx ng test --watch=false
       - name: Build
         run: npx ng build
+      - name: Docker image builds
+        working-directory: ${{ github.workspace }}
+        run: docker build ./frontend
 
   gitleaks:
     runs-on: ubuntu-latest
