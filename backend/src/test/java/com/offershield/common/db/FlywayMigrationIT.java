@@ -28,11 +28,23 @@ class FlywayMigrationIT extends IntegrationTest {
         List<String> versions = jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = 1 AND version IS NOT NULL ORDER BY installed_rank",
                 String.class);
-        assertThat(versions).startsWith("1", "2", "3", "4", "5", "6")
+        assertThat(versions).startsWith("1", "2", "3", "4", "5", "6", "7", "8")
                 .isEqualTo(IntStream.rangeClosed(1, versions.size()).mapToObj(Integer::toString).toList());
         assertThat(jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
                 String.class)).contains("audit_log", "processed_event", "college", "app_user", "tpo_assignment", "membership");
+    }
+
+    /** The TPO queue filters on (college_id, status) and orders by updated_at (a re-apply resets it), not created_at. */
+    @Test
+    void membership_queueIndexMatchesQueueOrder() {
+        assertThat(indexColumns("idx_membership_college_status_updated")).containsExactly("college_id", "status", "updated_at");
+        assertThat(indexColumns("idx_membership_college_status_created")).as("old index dropped").isEmpty();
+    }
+
+    private List<String> indexColumns(String indexName) {
+        return jdbc.queryForList("SELECT column_name FROM information_schema.statistics WHERE table_schema = DATABASE() "
+                + "AND table_name = 'membership' AND index_name = ? ORDER BY seq_in_index", String.class, indexName);
     }
 
     @Test
