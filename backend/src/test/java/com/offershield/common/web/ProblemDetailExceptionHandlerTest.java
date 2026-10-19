@@ -3,32 +3,28 @@ package com.offershield.common.web;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.offershield.auth.Role;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static com.offershield.support.TestPrincipals.signedIn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest
 @Import(ProblemDetailExceptionHandlerTest.ThrowingController.class)
-class ProblemDetailExceptionHandlerTest {
+class ProblemDetailExceptionHandlerTest extends IntegrationTest {
 
     private static final String INTERNAL_MARKER = "SECRET-INTERNAL-MARKER";
-
-    @Autowired
-    private MockMvc mockMvc;
 
     private ListAppender<ILoggingEvent> appender;
     private Logger handlerLogger;
@@ -48,7 +44,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void notFound_returns404ProblemJson() throws Exception {
-        mockMvc.perform(get("/test/not-found"))
+        mockMvc.perform(get("/test/not-found").with(signedIn(Role.USER)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -60,7 +56,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void conflict_returns409() throws Exception {
-        mockMvc.perform(get("/test/conflict"))
+        mockMvc.perform(get("/test/conflict").with(signedIn(Role.USER)))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Conflict"))
@@ -70,7 +66,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void unprocessable_returns422() throws Exception {
-        mockMvc.perform(get("/test/unprocessable"))
+        mockMvc.perform(get("/test/unprocessable").with(signedIn(Role.USER)))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("Image-only PDF"))
@@ -79,7 +75,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void unexpectedError_returns500WithoutInternals() throws Exception {
-        String body = mockMvc.perform(get("/test/boom"))
+        String body = mockMvc.perform(get("/test/boom").with(signedIn(Role.USER)))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Internal Server Error"))
@@ -92,7 +88,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void unexpectedError_logsClassOnly_noMessage() throws Exception {
-        mockMvc.perform(get("/test/boom")).andExpect(status().isInternalServerError());
+        mockMvc.perform(get("/test/boom").with(signedIn(Role.USER))).andExpect(status().isInternalServerError());
 
         assertThat(appender.list).isNotEmpty();
         assertThat(appender.list).allSatisfy(event -> {
@@ -105,7 +101,7 @@ class ProblemDetailExceptionHandlerTest {
 
     @Test
     void unknownPath_returns404Problem() throws Exception {
-        mockMvc.perform(get("/api/does-not-exist"))
+        mockMvc.perform(get("/api/does-not-exist").with(signedIn(Role.USER)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404));

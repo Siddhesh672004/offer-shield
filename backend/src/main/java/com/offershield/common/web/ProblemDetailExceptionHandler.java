@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
@@ -21,6 +22,12 @@ public class ProblemDetailExceptionHandler extends ResponseEntityExceptionHandle
     @ExceptionHandler(ApiException.class)
     ProblemDetail handleApiException(ApiException ex, HttpServletRequest request) {
         return problem(ex.status(), ex.getMessage(), ex.errorCode(), request);
+    }
+
+    /** {@code @PreAuthorize} denials surface inside MVC; without this they would hit the 500 catch-all. */
+    @ExceptionHandler(AccessDeniedException.class)
+    ProblemDetail handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        return problem(HttpStatus.FORBIDDEN, "You do not have permission to do this.", "FORBIDDEN", request);
     }
 
     /**

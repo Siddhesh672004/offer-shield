@@ -76,6 +76,8 @@ These are low-stakes defaults. The phase prompt asks you about each one before a
 
 **Answers (2026-10-19, P1):** M-01, M-02, M-03 → the recommended defaults. Extra item: Maven isn't installed on the dev PC, so builds use the **Maven Wrapper** (`backend/mvnw`, Maven 3.9.16, SHA-256 pinned); every `mvn` command in the plan is now `backend/mvnw`. From P1 on, the user asked for no further permission questions: remaining M-items take their recommended default and are recorded here.
 
+**Answers (2026-10-20, P2):** M-04 → 4 h session (recommended default; `server.servlet.session.timeout: 4h`). Google client ID/secret and `ADMIN_EMAILS` are deferred by the user until after all phases; until then the app starts with `GOOGLE_CLIENT_ID=not-configured` and the live sign-in checks are recorded as not executed.
+
 ## 4. Rules that follow directly from the PRD (no choice involved; listed for transparency)
 
 | ID | Rule | PRD source |

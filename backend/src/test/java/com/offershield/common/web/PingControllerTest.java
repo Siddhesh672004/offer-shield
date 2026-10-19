@@ -1,21 +1,15 @@
 package com.offershield.common.web;
 
 import com.offershield.common.logging.LogContext;
+import com.offershield.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(PingController.class)
-class PingControllerTest {
-
-    @Autowired
-    private MockMvc mockMvc;
+class PingControllerTest extends IntegrationTest {
 
     @Test
     void ping_returnsUpWithRequestIdHeader() throws Exception {
