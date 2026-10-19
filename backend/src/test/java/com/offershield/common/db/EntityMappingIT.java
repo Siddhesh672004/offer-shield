@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
 
@@ -44,6 +45,8 @@ class EntityMappingIT extends IntegrationTest {
     private AdminProperties adminProperties;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private TransactionTemplate transactionTemplate;
 
     @Test
     void college_saved_readBackWithVersionAndBinaryId() {
@@ -105,6 +108,20 @@ class EntityMappingIT extends IntegrationTest {
         assignments.delete(found);
         assignments.flush();
         assertThat(assignments.findByEmail("new.tpo@example.com")).isEmpty();
+    }
+
+    /** Spring Data skips delete() for an entity it thinks is new, so "new" must flip when persist() runs, not at flush. */
+    @Test
+    void entity_createdAndDeletedInOneTransaction_rowRemoved() {
+        College college = transactionTemplate.execute(status -> {
+            College created = colleges.save(College.create("Create Delete Same Tx College", null));
+            colleges.delete(created);
+            return created;
+        });
+
+        assertThat(colleges.findById(college.getId())).isEmpty();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM college WHERE name = 'Create Delete Same Tx College'",
+                Integer.class)).isZero();
     }
 
     @Test
