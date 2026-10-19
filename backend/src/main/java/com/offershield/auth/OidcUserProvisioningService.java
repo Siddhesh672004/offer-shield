@@ -1,9 +1,13 @@
 package com.offershield.auth;
 
 import com.offershield.common.audit.AuditLogService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -27,9 +31,18 @@ public class OidcUserProvisioningService {
     private final RoleLookup roleLookup;
     private final TransactionOperations transactions;
 
+    @Autowired
     public OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
                                        AdminProperties adminProperties, AuditLogService auditLogService,
-                                       RoleLookup roleLookup, TransactionOperations transactions) {
+                                       RoleLookup roleLookup, PlatformTransactionManager transactionManager) {
+        this(users, assignments, adminProperties, auditLogService, roleLookup,
+                newTransactionPerAttempt(transactionManager));
+    }
+
+    /** For unit tests, which run the attempts without a real transaction. */
+    OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
+                                AdminProperties adminProperties, AuditLogService auditLogService,
+                                RoleLookup roleLookup, TransactionOperations transactions) {
         this.users = users;
         this.assignments = assignments;
         this.adminProperties = adminProperties;
@@ -49,6 +62,19 @@ public class OidcUserProvisioningService {
         } catch (DataIntegrityViolationException ex) {
             return transactions.execute(status -> provisionOnce(identity));
         }
+    }
+
+    /**
+     * Each attempt is its own physical transaction (REQUIRES_NEW), even when a caller is already inside one. With the
+     * default REQUIRED, both attempts would join the caller's transaction: the failed INSERT would already have marked
+     * it rollback-only, and the failed entity would still sit in its persistence context, so the retry could neither
+     * commit nor cleanly re-read the winner's row. With REQUIRES_NEW the losing attempt rolls back alone and the retry
+     * starts with a fresh EntityManager that sees the committed row.
+     */
+    static TransactionTemplate newTransactionPerAttempt(PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
     }
 
     private ProvisionedUser provisionOnce(OidcIdentity identity) {

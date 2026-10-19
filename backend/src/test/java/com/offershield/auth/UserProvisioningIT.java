@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -43,6 +45,8 @@ class UserProvisioningIT extends IntegrationTest {
     private CollegeRepository colleges;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void provision_secondLoginWithNewEmail_updatesSameRow() {
@@ -154,6 +158,20 @@ class UserProvisioningIT extends IntegrationTest {
                 "SELECT COUNT(*) FROM audit_log WHERE action = 'TPO_ASSIGNMENT_CONSUMED' AND target_id = ?",
                 Integer.class, uuidBytes(college.getId()))).isEqualTo(1);
         assertThat(assignments.findByEmail("race.tpo@example.com")).isEmpty();
+    }
+
+    /**
+     * Each attempt runs in its own transaction even inside a caller's: otherwise the first-login retry would join a
+     * transaction the failed INSERT already marked rollback-only.
+     */
+    @Test
+    void provision_insideCallerTransactionThatRollsBack_userStillCommitted() {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            provisioning.provision(new OidcIdentity("it-sub-own-tx", "own.tx@example.com", true, "Test Own Tx"));
+            status.setRollbackOnly();
+        });
+
+        assertThat(users.findByGoogleSub("it-sub-own-tx")).isPresent();
     }
 
     @Test
