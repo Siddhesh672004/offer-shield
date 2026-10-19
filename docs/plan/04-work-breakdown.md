@@ -101,10 +101,11 @@
 
 ### P2-01 · Users and TPO assignment schema
 - **Decisions:** D-02 · **Est:** 0.5 h
-- **Files:** `V2__app_user.sql`, `V3__college.sql`, `V4__tpo_assignment.sql`
+- **Files:** `V3__create_college.sql`, `V4__create_app_user.sql`, `V5__create_tpo_assignment.sql` (V2 was taken by `processed_event` in P1)
 - **Acceptance:**
   - `app_user.google_sub` UNIQUE NOT NULL; `role` is one of USER, TPO, ADMIN; `tpo_college_id` nullable.
   - `tpo_assignment.email` UNIQUE.
+- **Status:** ✅ Done 2026-10-20 on `phase/p02-login` (evidence in 05 §7; live Google sign-in waits for secrets).
 
 ### P2-02 · Google sign-in, provisioning, session
 - **PRD:** §3, §6.1, §14.1, §14.2 · **Decisions:** D-02, D-21, R-C, M-04 · **Est:** 2.0 h (1.5–3)
@@ -126,6 +127,7 @@
   - `LoginRedirectTest.containsStateNonceAndPkce`
   - `SessionCookieTest.attributesHttpOnlySecureLax`
   - `ApiUnauthenticatedTest.returns401NotRedirect`
+- **Status:** ✅ Done 2026-10-20 on `phase/p02-login` (evidence in 05 §7; live Google sign-in waits for secrets).
 
 ### P2-03 · CSRF, security headers, per-user rate limit
 - **PRD:** §12 (XSRF), §13.6, §14.2, §14.7 · **Decisions:** D-10, D-12, V-03 · **Est:** 1.5 h (1–2.5)
@@ -136,6 +138,7 @@
   - The 61st request within a minute from one user → 429.
 - **Tests:** `CsrfTest` (`postWithoutToken_403`, `postWithToken_ok`, `getIssuesXsrfCookie`), `SecurityHeadersTest`, `UserRateLimitFilterTest` (`61stRequest_429`, `twoUsers_separateBuckets`)
 - **Verify:** `backend/mvnw -B -f backend/pom.xml verify`. Then sign in at `http://localhost/oauth2/authorization/google` and check that `/api/auth/me` shows your role.
+- **Status:** ✅ Done 2026-10-20 on `phase/p02-login` (evidence in 05 §7; live Google sign-in waits for secrets).
 
 **Checkpoint P2:** the OAuth Authorization Code flow; session cookie vs CSRF token; why there are no identity headers; 404 vs 403.
 
