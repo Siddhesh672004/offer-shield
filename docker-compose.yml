@@ -30,11 +30,18 @@ services:
       retries: 5
 
   # Angular app served by unprivileged nginx on :8080 (M-05); reached only through Caddy.
+  # Read-only root: nginx-unprivileged writes only its pid and temp files, all under /tmp
+  # (logs are symlinks to stdout/stderr). It needs no capabilities (uid 101, port 8080).
   frontend:
     build:
       context: ./frontend
     image: offershield-frontend:local
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
     networks:
