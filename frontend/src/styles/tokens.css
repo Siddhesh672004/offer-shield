@@ -1,0 +1,65 @@
+/*
+ * OfferShield design tokens (D-26): a calm "offer letter". A white sheet on a cool desk,
+ * blue-black ink, a letter serif for headings and the system sans for everything you read
+ * or type. No web fonts and no external requests (D-10).
+ */
+:root {
+  color-scheme: light;
+
+  /* Colour: paper and ink */
+  --color-desk: #e9edf1;
+  --color-paper: #ffffff;
+  --color-ink: #1a2238;
+  --color-ink-soft: #4b5470;
+  --color-rule: #cbd3dd;
+  --color-field-border: #767f95;
+
+  /* Colour: fountain-pen blue for actions and links */
+  --color-accent: #24489b;
+  --color-accent-strong: #1b3878;
+  --color-accent-wash: #e8eef9;
+
+  /* Colour: states (text colours pass 4.5:1 on their wash) */
+  --color-ok: #1d6744;
+  --color-ok-wash: #e4f2ea;
+  --color-warn: #6b4700;
+  --color-warn-wash: #fbf1da;
+  --color-danger: #a1262b;
+  --color-danger-wash: #fbecec;
+
+  /* Risk bands (P12) are shown by word + shape + colour, never colour alone */
+  --risk-low: var(--color-ok);
+  --risk-medium: var(--color-warn);
+  --risk-high: var(--color-danger);
+
+  /* Type */
+  --font-letter:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'URW Palladio L', P052,
+    Georgia, serif;
+  --font-ui:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-md: 1.125rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.5625rem;
+  --text-2xl: clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem);
+  --leading-body: 1.6;
+  --leading-tight: 1.2;
+  --measure: 65ch;
+
+  /* Space (4 px steps) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --touch: 2.75rem; /* 44 px minimum touch target */
+  --sheet-width: 48rem;
+}

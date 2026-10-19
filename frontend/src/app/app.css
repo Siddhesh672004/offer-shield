@@ -1,0 +1,173 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+  padding: var(--space-6) var(--space-4) var(--space-7);
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+/* One sheet of letter paper, with the next page of the letter peeking out beneath it. */
+.sheet {
+  position: relative;
+  max-width: var(--sheet-width);
+  margin: 0 auto;
+  border: 1px solid var(--color-rule);
+  border-radius: 2px;
+  background: var(--color-paper);
+}
+
+.sheet::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--color-rule);
+  border-radius: 2px;
+  background: var(--color-paper);
+  content: '';
+  transform: translate(6px, 6px);
+}
+
+/* Letterhead: name on the left, the reader's links on the right, a printed double rule below. */
+.letterhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-5) var(--space-6) var(--space-3);
+  border-bottom: 3px double var(--color-ink);
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--touch);
+  margin-right: auto;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  color: var(--color-ink);
+}
+
+.wordmark__mark {
+  width: 2rem;
+  height: 2rem;
+  fill: var(--color-accent-wash);
+  stroke: var(--color-accent);
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wordmark__name {
+  font-family: var(--font-letter);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.letterhead__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.letterhead__nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.letterhead__nav a:hover {
+  background: var(--color-accent-wash);
+  color: var(--color-accent-strong);
+}
+
+.letterhead__nav a.is-current {
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.4em;
+}
+
+.letterhead__account {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.letterhead__name {
+  max-width: 14rem;
+  overflow: hidden;
+  color: var(--color-ink-soft);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.letterhead__account .button {
+  padding-inline: var(--space-3);
+}
+
+.sheet__body {
+  padding: var(--space-6) var(--space-6) var(--space-7);
+}
+
+.sheet__footer {
+  padding: var(--space-4) var(--space-6) var(--space-5);
+  border-top: 1px solid var(--color-rule);
+}
+
+.sheet__footer p {
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  :host {
+    padding: 0;
+  }
+
+  .sheet {
+    min-height: 100dvh;
+    border-inline: 0;
+    border-radius: 0;
+  }
+
+  .sheet::before {
+    display: none;
+  }
+
+  .letterhead {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .sheet__body {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .sheet__footer {
+    padding: var(--space-4);
+  }
+}
