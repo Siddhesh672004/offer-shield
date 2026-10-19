@@ -34,6 +34,8 @@ class TpoAssignmentServiceTest {
     private TpoAssignmentRepository assignments;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private RoleLookup roleLookup;
 
     @InjectMocks
     private TpoAssignmentService service;
@@ -50,6 +52,17 @@ class TpoAssignmentServiceTest {
         assertThat(user.getTpoCollegeId()).isEqualTo(COLLEGE_ID);
         verify(auditLogService).record(ADMIN_ID, TpoAssignmentService.TPO_ASSIGNED, user.getId());
         verify(assignments, never()).save(any(TpoAssignment.class));
+    }
+
+    /** The promoted user's open sessions pick up TPO on their next request, not after the role cache expires. */
+    @Test
+    void assign_verifiedUser_cachedRoleEvicted() {
+        AppUser user = AppUser.create("sub-9", "tpo@example.com", true, "Tara TPO");
+        when(users.findAllByEmail("tpo@example.com")).thenReturn(List.of(user));
+
+        service.assign(COLLEGE_ID, "tpo@example.com", ADMIN_ID);
+
+        verify(roleLookup).evict(user.getId());
     }
 
     @Test

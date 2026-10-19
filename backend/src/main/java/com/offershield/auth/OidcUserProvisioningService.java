@@ -24,15 +24,17 @@ public class OidcUserProvisioningService {
     private final TpoAssignmentRepository assignments;
     private final AdminProperties adminProperties;
     private final AuditLogService auditLogService;
+    private final RoleLookup roleLookup;
     private final TransactionOperations transactions;
 
     public OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
                                        AdminProperties adminProperties, AuditLogService auditLogService,
-                                       TransactionOperations transactions) {
+                                       RoleLookup roleLookup, TransactionOperations transactions) {
         this.users = users;
         this.assignments = assignments;
         this.adminProperties = adminProperties;
         this.auditLogService = auditLogService;
+        this.roleLookup = roleLookup;
         this.transactions = transactions;
     }
 
@@ -58,6 +60,10 @@ public class OidcUserProvisioningService {
         user.updateIdentity(email, identity.emailVerified(), name);
 
         Role role = resolveRole(user, email, identity.emailVerified());
+        if (role != user.getRole()) {
+            // The user's other signed-in sessions pick the new role up on their next request.
+            roleLookup.evict(user.getId());
+        }
         user.changeRole(role);
         users.save(user);
         return new ProvisionedUser(user.getId(), role);

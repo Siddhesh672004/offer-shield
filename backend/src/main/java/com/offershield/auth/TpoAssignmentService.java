@@ -30,12 +30,14 @@ public class TpoAssignmentService {
     private final AppUserRepository users;
     private final TpoAssignmentRepository assignments;
     private final AuditLogService auditLogService;
+    private final RoleLookup roleLookup;
 
     public TpoAssignmentService(AppUserRepository users, TpoAssignmentRepository assignments,
-                                AuditLogService auditLogService) {
+                                AuditLogService auditLogService, RoleLookup roleLookup) {
         this.users = users;
         this.assignments = assignments;
         this.auditLogService = auditLogService;
+        this.roleLookup = roleLookup;
     }
 
     /** The caller has already checked that {@code collegeId} exists. */
@@ -76,6 +78,8 @@ public class TpoAssignmentService {
         if (user.getRole() != Role.ADMIN) {
             user.changeRole(Role.TPO);
         }
+        // Already signed in? The session gets the new role on its next request (SessionRoleRefreshFilter).
+        roleLookup.evict(user.getId());
         auditLogService.record(adminId, TPO_ASSIGNED, user.getId());
     }
 

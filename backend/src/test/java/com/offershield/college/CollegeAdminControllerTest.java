@@ -51,8 +51,12 @@ class CollegeAdminControllerTest extends IntegrationTest {
 
     @BeforeEach
     void setUp() {
-        // The admin needs an app_user row: tpo_assignment.assigned_by references it.
+        // The admin needs an app_user row (tpo_assignment.assigned_by references it) whose role really is ADMIN: the
+        // session role is checked against the database on every request.
         adminId = provision(token + ".admin@example.com", true).userId();
+        AppUser admin = users.findById(adminId).orElseThrow();
+        admin.changeRole(Role.ADMIN);
+        users.saveAndFlush(admin);
     }
 
     @Test
