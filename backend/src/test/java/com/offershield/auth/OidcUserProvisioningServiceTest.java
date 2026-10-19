@@ -121,6 +121,23 @@ class OidcUserProvisioningServiceTest {
         verify(auditLogService).record(result.userId(), "TPO_ASSIGNMENT_CONSUMED", COLLEGE_ID);
     }
 
+    /** MySQL's utf8mb4_0900_ai_ci collation finds "josé" when asked for "jose"; only an exact match may grant TPO. */
+    @Test
+    void assignmentEmailMatchesOnlyThroughCollation_notConsumed() {
+        when(users.findByGoogleSub(SUB)).thenReturn(Optional.empty());
+        TpoAssignment accented = TpoAssignment.create("josé.tpo@example.com", COLLEGE_ID, ADMIN_ID);
+        when(assignments.findByEmail("jose.tpo@example.com")).thenReturn(Optional.of(accented));
+
+        ProvisionedUser result = service.provision(new OidcIdentity(SUB, "jose.tpo@example.com", true, "Test Person"));
+
+        assertThat(result.role()).isEqualTo(Role.USER);
+        ArgumentCaptor<AppUser> saved = ArgumentCaptor.forClass(AppUser.class);
+        verify(users).save(saved.capture());
+        assertThat(saved.getValue().getTpoCollegeId()).isNull();
+        verify(assignments, never()).delete(any(TpoAssignment.class));
+        verifyNoInteractions(auditLogService);
+    }
+
     @Test
     void unverifiedEmail_userOnly() {
         service = provisioningWithAdmins(List.of("both@example.com"));

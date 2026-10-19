@@ -57,7 +57,9 @@ public class OidcUserProvisioningService {
     }
 
     private void consumeTpoAssignment(AppUser user, String email) {
-        Optional<TpoAssignment> assignment = assignments.findByEmail(email);
+        // The column collation is accent-insensitive ("jose" finds "josé"), so insist on the exact stored email.
+        Optional<TpoAssignment> assignment = assignments.findByEmail(email)
+                .filter(found -> found.getEmail().equals(email));
         if (assignment.isPresent()) {
             user.assignTpoCollege(assignment.get().getCollegeId());
             assignments.delete(assignment.get());

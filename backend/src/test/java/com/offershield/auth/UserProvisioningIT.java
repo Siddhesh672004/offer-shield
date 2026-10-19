@@ -104,6 +104,21 @@ class UserProvisioningIT extends IntegrationTest {
     }
 
     @Test
+    void provision_emailEqualOnlyUnderAccentInsensitiveCollation_staysUserAndAssignmentRemains() {
+        College college = colleges.saveAndFlush(College.create("Accent IT College", null));
+        AppUser assigner = users.saveAndFlush(AppUser.create("it-sub-assigner-3", "assigner3@example.com", true, null));
+        assignments.saveAndFlush(TpoAssignment.create("josé.it@example.com", college.getId(), assigner.getId()));
+
+        ProvisionedUser result = provisioning.provision(new OidcIdentity("it-sub-accent", "jose.it@example.com", true, "Test Jose"));
+
+        assertThat(result.role()).isEqualTo(Role.USER);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM tpo_assignment WHERE college_id = ?", Integer.class,
+                uuidBytes(college.getId()))).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM audit_log WHERE actor_id = ?", Integer.class,
+                uuidBytes(result.userId()))).isZero();
+    }
+
+    @Test
     void me_unknownUser_notFound() {
         assertThatThrownBy(() -> meService.me(UUID.randomUUID())).isInstanceOf(NotFoundException.class);
     }
