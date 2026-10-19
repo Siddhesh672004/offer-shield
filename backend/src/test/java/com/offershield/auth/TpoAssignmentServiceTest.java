@@ -1,6 +1,7 @@
 package com.offershield.auth;
 
 import com.offershield.common.audit.AuditLogService;
+import com.offershield.common.web.ConflictException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -8,6 +9,8 @@ import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.util.List;
 import java.util.Map;
@@ -15,7 +18,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -51,7 +56,7 @@ class TpoAssignmentServiceTest {
         assertThat(user.getRole()).isEqualTo(Role.TPO);
         assertThat(user.getTpoCollegeId()).isEqualTo(COLLEGE_ID);
         verify(auditLogService).record(ADMIN_ID, TpoAssignmentService.TPO_ASSIGNED, user.getId());
-        verify(assignments, never()).save(any(TpoAssignment.class));
+        verify(assignments, never()).saveAndFlush(any(TpoAssignment.class));
     }
 
     /** The promoted user's open sessions pick up TPO on their next request, not after the role cache expires. */
@@ -100,7 +105,7 @@ class TpoAssignmentServiceTest {
 
         assertThat(result).isEqualTo(new TpoAssignmentResult("new.tpo@example.com", TpoAssignmentStatus.PENDING));
         ArgumentCaptor<TpoAssignment> saved = ArgumentCaptor.forClass(TpoAssignment.class);
-        verify(assignments).save(saved.capture());
+        verify(assignments).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getEmail()).isEqualTo("new.tpo@example.com");
         assertThat(saved.getValue().getCollegeId()).isEqualTo(COLLEGE_ID);
         assertThat(saved.getValue().getAssignedBy()).isEqualTo(ADMIN_ID);
@@ -118,7 +123,7 @@ class TpoAssignmentServiceTest {
         assertThat(result.status()).isEqualTo(TpoAssignmentStatus.PENDING);
         assertThat(unverified.getRole()).isEqualTo(Role.USER);
         assertThat(unverified.getTpoCollegeId()).isNull();
-        verify(assignments).save(any(TpoAssignment.class));
+        verify(assignments).saveAndFlush(any(TpoAssignment.class));
     }
 
     @Test
@@ -148,9 +153,78 @@ class TpoAssignmentServiceTest {
         order.verify(assignments).delete(old);
         order.verify(assignments).flush();
         ArgumentCaptor<TpoAssignment> saved = ArgumentCaptor.forClass(TpoAssignment.class);
-        order.verify(assignments).save(saved.capture());
+        order.verify(assignments).saveAndFlush(saved.capture());
         assertThat(saved.getValue().getCollegeId()).isEqualTo(COLLEGE_ID);
         assertThat(saved.getValue().getAssignedBy()).isEqualTo(ADMIN_ID);
+    }
+
+    /** Two admins assigning the same new email at once: the unique key lets one row in; the other gets a clean 409. */
+    @Test
+    void assign_concurrentInsertOfSameEmail_409NotAudited() {
+        when(users.findAllByEmail("new.tpo@example.com")).thenReturn(List.of());
+        when(assignments.findByEmail("new.tpo@example.com")).thenReturn(Optional.empty());
+        when(assignments.saveAndFlush(any(TpoAssignment.class))).thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThatThrownBy(() -> service.assign(COLLEGE_ID, "new.tpo@example.com", ADMIN_ID))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> assertThat(ex.status().value()).isEqualTo(409));
+        verify(auditLogService, never()).record(any(), any(), any());
+    }
+
+    @Test
+    void assign_pendingRowRemovedConcurrently_409NotAudited() {
+        TpoAssignment old = TpoAssignment.create("new.tpo@example.com", OTHER_COLLEGE_ID, UUID.randomUUID());
+        when(users.findAllByEmail("new.tpo@example.com")).thenReturn(List.of());
+        when(assignments.findByEmail("new.tpo@example.com")).thenReturn(Optional.of(old));
+        doThrow(new ObjectOptimisticLockingFailureException(TpoAssignment.class, old.getId())).when(assignments).flush();
+
+        assertThatThrownBy(() -> service.assign(COLLEGE_ID, "new.tpo@example.com", ADMIN_ID))
+                .isInstanceOf(ConflictException.class);
+        verify(assignments, never()).saveAndFlush(any(TpoAssignment.class));
+        verify(auditLogService, never()).record(any(), any(), any());
+    }
+
+    /** The email key is accent-insensitive: "jose" finds the pending "josé" row, which must not be silently replaced. */
+    @Test
+    void assign_pendingRowForAccentVariantEmail_409RowKept() {
+        TpoAssignment accented = TpoAssignment.create("josé@example.com", OTHER_COLLEGE_ID, UUID.randomUUID());
+        when(users.findAllByEmail("jose@example.com")).thenReturn(List.of());
+        when(assignments.findByEmail("jose@example.com")).thenReturn(Optional.of(accented));
+
+        assertThatThrownBy(() -> service.assign(COLLEGE_ID, "jose@example.com", ADMIN_ID))
+                .isInstanceOfSatisfying(ConflictException.class, ex -> assertThat(ex.getMessage())
+                        .contains("differs only in accents")
+                        .doesNotContain("jose"));
+        verify(assignments, never()).delete(any(TpoAssignment.class));
+        verify(assignments, never()).saveAndFlush(any(TpoAssignment.class));
+        verify(auditLogService, never()).record(any(), any(), any());
+    }
+
+    /** Otherwise the leftover row would move the new TPO to its (older) college at their next sign-in. */
+    @Test
+    void assign_verifiedUserWithPendingRowForSameEmail_pendingRowDeleted() {
+        AppUser user = AppUser.create("sub-10", "tpo@example.com", true, "Tara TPO");
+        TpoAssignment leftover = TpoAssignment.create("tpo@example.com", OTHER_COLLEGE_ID, UUID.randomUUID());
+        when(users.findAllByEmail("tpo@example.com")).thenReturn(List.of(user));
+        when(assignments.findByEmail("tpo@example.com")).thenReturn(Optional.of(leftover));
+
+        TpoAssignmentResult result = service.assign(COLLEGE_ID, "tpo@example.com", ADMIN_ID);
+
+        assertThat(result.status()).isEqualTo(TpoAssignmentStatus.ASSIGNED);
+        assertThat(user.getTpoCollegeId()).isEqualTo(COLLEGE_ID);
+        verify(assignments).delete(leftover);
+    }
+
+    @Test
+    void assign_verifiedUserWithPendingRowForAccentVariant_rowKept() {
+        AppUser user = AppUser.create("sub-11", "jose@example.com", true, "Jose TPO");
+        TpoAssignment accented = TpoAssignment.create("josé@example.com", OTHER_COLLEGE_ID, UUID.randomUUID());
+        when(users.findAllByEmail("jose@example.com")).thenReturn(List.of(user));
+        when(assignments.findByEmail("jose@example.com")).thenReturn(Optional.of(accented));
+
+        service.assign(COLLEGE_ID, "jose@example.com", ADMIN_ID);
+
+        assertThat(user.getTpoCollegeId()).isEqualTo(COLLEGE_ID);
+        verify(assignments, never()).delete(any(TpoAssignment.class));
     }
 
     @Test

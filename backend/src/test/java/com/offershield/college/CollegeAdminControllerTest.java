@@ -199,6 +199,25 @@ class CollegeAdminControllerTest extends IntegrationTest {
                 .singleElement().extracting(TpoAssignment::getCollegeId).isEqualTo(second);
     }
 
+    /** MySQL's accent-insensitive key finds "josé…" for "jose…": refuse instead of replacing that person's row. */
+    @Test
+    void assignPendingAccentVariant_409OriginalKept() throws Exception {
+        UUID first = createCollege(token + " Accent First College");
+        UUID second = createCollege(token + " Accent Second College");
+        String accented = "josé." + token.toLowerCase(Locale.ROOT) + "@example.com";
+        assignTpo(first, accented);
+
+        mockMvc.perform(post("/api/admin/colleges/{id}/tpos", second).with(admin()).with(xsrf(mockMvc))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(emailJson("jose." + token.toLowerCase(Locale.ROOT) + "@example.com")))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("CONFLICT"));
+
+        assertThat(assignments.findAll()).filteredOn(a -> a.getEmail().equals(accented))
+                .singleElement().extracting(TpoAssignment::getCollegeId).isEqualTo(first);
+    }
+
     @Test
     void assign_invalidEmail_400() throws Exception {
         UUID collegeId = createCollege(token + " Invalid Email College");
