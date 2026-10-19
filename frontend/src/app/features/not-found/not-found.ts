@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
   template: `
     <h1>Page not found</h1>
     <p>This address doesn't exist, or it isn't available for your account.</p>
-    <a routerLink="/">Go to the start page</a>
+    <a class="link-action" routerLink="/">Go to the start page</a>
   `,
 })
 export class NotFound {}

@@ -22,14 +22,14 @@ import { Session } from '../../core/auth/session';
             @switch (me.membershipStatus) {
               @case ('PENDING') {
                 <p>Your request to join {{ collegeName() }} is waiting for your TPO.</p>
-                <a routerLink="/join">See your request</a>
+                <a class="link-action" routerLink="/join">See your request</a>
               }
               @case ('APPROVED') {
                 <p>You're a member of {{ collegeName() }}.</p>
               }
               @case ('REJECTED') {
                 <p>Your request to join {{ collegeName() }} wasn't approved.</p>
-                <a routerLink="/join">See the reason or send a new request</a>
+                <a class="link-action" routerLink="/join">See the reason or send a new request</a>
               }
               @default {
                 <p>

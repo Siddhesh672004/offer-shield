@@ -1,0 +1,184 @@
+<h1>Join my college</h1>
+
+@if (loading()) {
+  <p class="lead">Loading your join request…</p>
+} @else {
+  @if (membership(); as request) {
+    @if (alreadyRequested()) {
+      <app-notice tone="info">
+        <p>
+          You already have a join request. You can send a new one only if this one isn't approved.
+        </p>
+      </app-notice>
+    }
+
+    <section class="request" aria-labelledby="request-heading">
+      <h2 id="request-heading">Your join request</h2>
+      <p class="request-status" [class]="'request-status request-status--' + request.status">
+        <svg class="request-status__shape" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="9" />
+          @switch (request.status) {
+            @case ('APPROVED') {
+              <path d="m8 12.5 2.8 2.8L16.5 9" />
+            }
+            @case ('REJECTED') {
+              <path d="m9 9 6 6M15 9l-6 6" />
+            }
+            @default {
+              <path d="M12 7v5l3.2 2" />
+            }
+          }
+        </svg>
+        <span>{{ statusLabels[request.status] }}</span>
+      </p>
+
+      <dl class="request__details">
+        <div>
+          <dt>College</dt>
+          <dd>{{ request.collegeName }}</dd>
+        </div>
+        <div>
+          <dt>Roll number</dt>
+          <dd translate="no">{{ request.rollNo }}</dd>
+        </div>
+        <div>
+          <dt>Department</dt>
+          <dd>{{ request.department }}</dd>
+        </div>
+      </dl>
+
+      @switch (request.status) {
+        @case ('PENDING') {
+          <p>Your TPO will approve or reject it. You'll get an email when they decide.</p>
+        }
+        @case ('APPROVED') {
+          <p>You're a member of {{ request.collegeName }}.</p>
+        }
+        @case ('REJECTED') {
+          @if (request.reason) {
+            <p class="request__reason-label">Reason from your TPO:</p>
+            <blockquote class="request__reason">{{ request.reason }}</blockquote>
+          }
+          <p>You can send a new request below.</p>
+        }
+      }
+
+      @if (request.status !== 'REJECTED') {
+        <a class="link-action" routerLink="/app">Go to your offers</a>
+      }
+    </section>
+  }
+
+  @if (showForm()) {
+    @if (membership()) {
+      <h2 class="new-request">Send a new request</h2>
+    }
+    <p class="lead">
+      Find your college, then add your roll number and department. Your TPO checks these details
+      before approving you.
+    </p>
+
+    <form class="search" role="search" aria-label="Find your college" [formRoot]="searchForm">
+      <label class="field__label" for="college-search">College name</label>
+      <div class="search__row">
+        <input
+          id="college-search"
+          class="input"
+          type="search"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="e.g. Engineering…"
+          [formField]="searchForm.query"
+        />
+        <button
+          type="submit"
+          class="button button--secondary search-submit"
+          [disabled]="searching()"
+        >
+          {{ searching() ? 'Searching…' : 'Search' }}
+        </button>
+      </div>
+    </form>
+
+    <form class="join" aria-label="Join request" [formRoot]="joinForm">
+      <fieldset
+        class="colleges"
+        [attr.aria-describedby]="collegeError() ? 'college-error' : null"
+        [attr.aria-busy]="searching()"
+      >
+        <legend class="field__label">Your college</legend>
+        @if (collegesFailed()) {
+          <p class="field__error">Couldn't load colleges. Search again.</p>
+        } @else {
+          @for (college of colleges(); track college.id) {
+            <label class="college-option">
+              <input type="radio" [value]="college.id" [formField]="joinForm.collegeId" />
+              <span class="college-option__text">
+                <span class="college-option__name">{{ college.name }}</span>
+                @if (college.city) {
+                  <span class="college-option__city">{{ college.city }}</span>
+                }
+              </span>
+            </label>
+          } @empty {
+            @if (searchedFor()) {
+              <p class="colleges__empty">
+                No college matches “{{ searchedFor() }}”. Check the spelling, or ask your TPO
+                whether your college uses OfferShield.
+              </p>
+            } @else {
+              <p class="colleges__empty">
+                No colleges use OfferShield yet. Ask your TPO to contact the OfferShield admin.
+              </p>
+            }
+          }
+        }
+        @if (collegeError(); as message) {
+          <p class="field__error" id="college-error">{{ message }}</p>
+        }
+      </fieldset>
+
+      <div class="field">
+        <label class="field__label" for="roll-no">Roll number</label>
+        <input
+          id="roll-no"
+          class="input input--short"
+          autocomplete="off"
+          spellcheck="false"
+          [formField]="joinForm.rollNo"
+          [attr.aria-invalid]="rollNoError() ? 'true' : null"
+          [attr.aria-describedby]="rollNoError() ? 'roll-no-error' : null"
+        />
+        @if (rollNoError(); as message) {
+          <p class="field__error" id="roll-no-error">{{ message }}</p>
+        }
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="department">Department</label>
+        <input
+          id="department"
+          class="input"
+          autocomplete="off"
+          placeholder="e.g. Computer Engineering…"
+          [formField]="joinForm.department"
+          [attr.aria-invalid]="departmentError() ? 'true' : null"
+          [attr.aria-describedby]="departmentError() ? 'department-error' : null"
+        />
+        @if (departmentError(); as message) {
+          <p class="field__error" id="department-error">{{ message }}</p>
+        }
+      </div>
+
+      @if (sendError(); as message) {
+        <app-notice tone="danger"
+          ><p>{{ message }}</p></app-notice
+        >
+      }
+
+      <button type="submit" class="button join-submit" [disabled]="joinForm().submitting()">
+        {{ joinForm().submitting() ? 'Sending…' : 'Send join request' }}
+      </button>
+    </form>
+  }
+}

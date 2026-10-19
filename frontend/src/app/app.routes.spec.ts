@@ -64,4 +64,54 @@ describe('app routes', () => {
   it('unknownPath_showsNotFound', async () => {
     expect((await open(fakeStudent, '/no-such-page')).heading).toBe('Page not found');
   });
+
+  it('root_signedOut_endsAtLogin', async () => {
+    expect(await open('signed-out', '/')).toEqual({
+      url: '/login',
+      heading: 'Check a job offer before you reply',
+    });
+  });
+
+  it('failedGoogleSignIn_endsAtLoginWithMessage', async () => {
+    await answerSessionProbe('signed-out');
+    const harness = await RouterTestingHarness.create();
+
+    await harness.navigateByUrl('/app?login=failed');
+
+    expect(router.url).toBe('/login?login=failed');
+    expect(harness.routeNativeElement?.textContent).toContain(
+      "Sign-in didn't complete. Try again.",
+    );
+  });
+
+  it('newStudentAfterSignIn_landsOnChoosePath', async () => {
+    expect(await open(fakeStudent, '/app')).toEqual({
+      url: '/start',
+      heading: 'How do you want to use OfferShield?',
+    });
+  });
+
+  it('choosePath_tpo_showsNotFound', async () => {
+    expect((await open(fakeTpo, '/start')).heading).toBe('Page not found');
+  });
+
+  it('join_student_opensJoinPage', async () => {
+    await answerSessionProbe(fakeStudent);
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+
+    await harness.navigateByUrl('/join');
+    http
+      .expectOne('/api/memberships/me')
+      .flush({ status: 404 }, { status: 404, statusText: 'Not Found' });
+    http.expectOne((request) => request.url === '/api/colleges').flush([]);
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe('/join');
+    expect(harness.routeNativeElement?.querySelector('h1')?.textContent).toBe('Join my college');
+  });
+
+  it('join_signedOut_endsAtLogin', async () => {
+    expect((await open('signed-out', '/join')).url).toBe('/login');
+  });
 });

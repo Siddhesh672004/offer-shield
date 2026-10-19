@@ -26,7 +26,7 @@ export function problemCode(error: unknown): string | undefined {
   return typeof code === 'string' ? code : undefined;
 }
 
-/** The server's `detail` (written to be safe to show), or the given fallback. */
+/** The server's `detail` (written to be shown to the user), or the given fallback. */
 export function problemDetail(error: unknown, fallback: string): string {
   const detail = readProblem(error)?.detail;
   return typeof detail === 'string' && detail.trim() !== '' ? detail : fallback;
