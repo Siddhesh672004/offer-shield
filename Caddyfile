@@ -9,9 +9,13 @@
 	# Everything else is the Angular app (nginx, P4). The app sets these headers on its own
 	# responses; these cover the frontend's (D-10 CSP). "defer" applies them after the proxy
 	# copies nginx's headers, so they always win.
+	# The CSP below must stay identical to CONTENT_SECURITY_POLICY in
+	# backend/src/main/java/com/offershield/auth/SecurityConfig.java; CI ("CSP matches") fails if they differ.
+	# Browsers ignore HSTS over plain http (local); it takes effect once P14 serves HTTPS.
 	handle {
 		header {
 			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			Strict-Transport-Security "max-age=31536000"
 			X-Content-Type-Options nosniff
 			Referrer-Policy no-referrer
 			X-Frame-Options DENY
