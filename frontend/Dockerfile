@@ -2,7 +2,7 @@
 # M-05: build the Angular app, then serve the static files from unprivileged nginx on :8080.
 # Caddy is the only published port; it proxies everything that isn't /api, /oauth2 or /login/ here.
 
-FROM node:24.17.0-alpine AS build
+FROM node:24.22.0-alpine AS build
 ENV NG_CLI_ANALYTICS=false CI=true
 WORKDIR /workspace
 COPY package.json package-lock.json ./
