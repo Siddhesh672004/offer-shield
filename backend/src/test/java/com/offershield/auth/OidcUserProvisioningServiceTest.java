@@ -109,6 +109,7 @@ class OidcUserProvisioningServiceTest {
         when(users.findByGoogleSub(SUB)).thenReturn(Optional.empty());
         TpoAssignment assignment = TpoAssignment.create("tpo@example.com", COLLEGE_ID, ADMIN_ID);
         when(assignments.findByEmail("tpo@example.com")).thenReturn(Optional.of(assignment));
+        when(assignments.consume(assignment.getId(), COLLEGE_ID)).thenReturn(1);
 
         ProvisionedUser result = service.provision(new OidcIdentity(SUB, " TPO@Example.com", true, "Test TPO"));
 
@@ -117,8 +118,26 @@ class OidcUserProvisioningServiceTest {
         verify(users).save(saved.capture());
         assertThat(saved.getValue().getRole()).isEqualTo(Role.TPO);
         assertThat(saved.getValue().getTpoCollegeId()).isEqualTo(COLLEGE_ID);
-        verify(assignments).delete(assignment);
+        verify(assignments).consume(assignment.getId(), COLLEGE_ID);
+        verify(assignments, never()).delete(any(TpoAssignment.class));
         verify(auditLogService).record(result.userId(), "TPO_ASSIGNMENT_CONSUMED", COLLEGE_ID);
+    }
+
+    /** Another sign-in deleted the row between our read and our delete: only the winner (1 row) becomes TPO. */
+    @Test
+    void tpoAssignmentConsumedByConcurrentLogin_staysUserWithoutAudit() {
+        when(users.findByGoogleSub(SUB)).thenReturn(Optional.empty());
+        TpoAssignment assignment = TpoAssignment.create("tpo@example.com", COLLEGE_ID, ADMIN_ID);
+        when(assignments.findByEmail("tpo@example.com")).thenReturn(Optional.of(assignment));
+        when(assignments.consume(assignment.getId(), COLLEGE_ID)).thenReturn(0);
+
+        ProvisionedUser result = service.provision(new OidcIdentity(SUB, "tpo@example.com", true, "Test TPO"));
+
+        assertThat(result.role()).isEqualTo(Role.USER);
+        ArgumentCaptor<AppUser> saved = ArgumentCaptor.forClass(AppUser.class);
+        verify(users).save(saved.capture());
+        assertThat(saved.getValue().getTpoCollegeId()).isNull();
+        verifyNoInteractions(auditLogService);
     }
 
     /** MySQL's utf8mb4_0900_ai_ci collation finds "josé" when asked for "jose"; only an exact match may grant TPO. */
@@ -134,7 +153,7 @@ class OidcUserProvisioningServiceTest {
         ArgumentCaptor<AppUser> saved = ArgumentCaptor.forClass(AppUser.class);
         verify(users).save(saved.capture());
         assertThat(saved.getValue().getTpoCollegeId()).isNull();
-        verify(assignments, never()).delete(any(TpoAssignment.class));
+        verify(assignments, never()).consume(any(), any());
         verifyNoInteractions(auditLogService);
     }
 
@@ -152,7 +171,7 @@ class OidcUserProvisioningServiceTest {
         verify(users).save(saved.capture());
         assertThat(saved.getValue().getRole()).isEqualTo(Role.USER);
         assertThat(saved.getValue().getTpoCollegeId()).isNull();
-        verify(assignments, never()).delete(any(TpoAssignment.class));
+        verify(assignments, never()).consume(any(), any());
         verifyNoInteractions(auditLogService);
     }
 
@@ -205,7 +224,7 @@ class OidcUserProvisioningServiceTest {
         ProvisionedUser result = service.provision(new OidcIdentity(SUB, "admin@example.com", true, "Test Admin"));
 
         assertThat(result.role()).isEqualTo(Role.ADMIN);
-        verify(assignments, never()).delete(any(TpoAssignment.class));
+        verify(assignments, never()).consume(any(), any());
         verifyNoInteractions(auditLogService);
     }
 

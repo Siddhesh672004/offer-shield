@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Turns a verified Google identity into our {@link AppUser} row (keyed on {@code sub}) and works out the role.
@@ -60,10 +61,14 @@ public class OidcUserProvisioningService {
         // The column collation is accent-insensitive ("jose" finds "josé"), so insist on the exact stored email.
         Optional<TpoAssignment> assignment = assignments.findByEmail(email)
                 .filter(found -> found.getEmail().equals(email));
-        if (assignment.isPresent()) {
-            user.assignTpoCollege(assignment.get().getCollegeId());
-            assignments.delete(assignment.get());
-            auditLogService.record(user.getId(), TPO_ASSIGNMENT_CONSUMED, assignment.get().getCollegeId());
+        if (assignment.isEmpty()) {
+            return;
+        }
+        UUID collegeId = assignment.get().getCollegeId();
+        // Concurrent sign-ins can all read the row; only the one whose delete removes it becomes TPO.
+        if (assignments.consume(assignment.get().getId(), collegeId) == 1) {
+            user.assignTpoCollege(collegeId);
+            auditLogService.record(user.getId(), TPO_ASSIGNMENT_CONSUMED, collegeId);
         }
     }
 
