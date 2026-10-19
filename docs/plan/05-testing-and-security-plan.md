@@ -139,3 +139,6 @@
 | 2026-10-19 | P1-01 · S-10 (part) | `git check-ignore .env` | Yes | Yes | prints `.env` |
 | 2026-10-19 | P1-01 | CI workflow (build + gitleaks) and Dependabot files exist | Yes | Yes | `.github/workflows/ci.yml`, `.github/dependabot.yml` |
 | 2026-10-19 | P1-01 · S-10 (part) | CI run + gitleaks on GitHub | No | — | No GitHub remote yet (M1 item 6: CI runs once a remote exists) |
+| 2026-10-20 | P1 review fix · S-11 (part) | `SqlErrorLoggingIT.duplicateKeyViaHibernate_valueNeverLogged` (root-logger appender, duplicate key via Hibernate) | Yes | Yes | RED first: `org.hibernate.orm.jdbc.error - Duplicate entry '…zebra.marker.sql@example.com'…` logged; GREEN after silencing `org.hibernate.orm.jdbc.error/warn`; full verify 14 unit + 3 IT green |
+| 2026-10-20 | P1 review fix | `APP_DOMAIN=demo.duckdns.org docker compose config` | Yes | Yes | `SITE_ADDRESS: demo.duckdns.org`; without APP_DOMAIN → `http://localhost` |
+| 2026-10-20 | P1-02 (re-capture) | `kafka-configs.sh --describe --all` (broker 1) after rebuild | Yes | Yes | `auto.create.topics.enable=false`, `log.dirs=/var/lib/kafka/data`, `log.retention.hours=72`; all 4 services healthy |
