@@ -34,10 +34,10 @@ class FlywayMigrationIT {
         assertThat(jdbc.queryForObject("SELECT VERSION()", String.class)).startsWith("8.4");
         assertThat(jdbc.queryForList(
                 "SELECT version FROM flyway_schema_history WHERE success = 1 AND version IS NOT NULL ORDER BY installed_rank",
-                String.class)).containsExactly("1", "2", "3", "4", "5");
+                String.class)).containsExactly("1", "2", "3", "4", "5", "6");
         assertThat(jdbc.queryForList(
                 "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()",
-                String.class)).contains("audit_log", "processed_event", "college", "app_user", "tpo_assignment");
+                String.class)).contains("audit_log", "processed_event", "college", "app_user", "tpo_assignment", "membership");
     }
 
     @Test
