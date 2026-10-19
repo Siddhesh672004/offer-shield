@@ -216,7 +216,7 @@
 
 ### P5-01 · Schema, upload endpoint, Idempotency-Key, DB-count limit, owner reads
 - **PRD:** §4 F3, §6.2, §10, §13.4, §14.3 · **Decisions:** D-12, D-33.1, D-33.2, D-33.6 · **Est:** 1.5 h
-- **Files:** `V6__submission.sql`, `submission/SubmissionController.java`, `SubmissionService.java`, `SubmissionRepository.java`
+- **Files:** `V9__submission.sql` (V1–V8 are taken by P1–P3), `submission/SubmissionController.java`, `SubmissionService.java`, `SubmissionRepository.java`
 - **Acceptance:**
   - The PRD columns + `publish_attempts`, `last_published_at`; UNIQUE(`owner_user_id`, `idempotency_key`).
   - `POST /api/submissions` takes multipart `file` XOR `text`, plus optional `senderEmail`, `recruiterPhone` and `upiId`, with a required `Idempotency-Key`:

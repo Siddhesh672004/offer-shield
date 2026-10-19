@@ -40,6 +40,7 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
 | Kafka topics | `docker compose exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list` | `submission.created`, `analysis.completed` + 2 `.DLT` |
 | Peek an event | `… kafka-console-consumer.sh --topic submission.created --from-beginning --max-messages 1` | IDs and metadata; no letter text |
 | Frontend dev | `cd frontend && npx ng serve` with a proxy to `http://localhost` | Hot reload; full checks still go through `http://localhost` |
+| Caddyfile edit | `docker compose restart caddy` | The Caddyfile is bind-mounted; Caddy does not auto-reload |
 | Reset | `docker compose down -v` | **Deletes local data.** Use only on purpose |
 
 ## 4. Oracle Cloud runbook (PRD §16.3; facts V-14, V-15, V-16, V-18)
