@@ -21,6 +21,11 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  task:
+    execution:
+      # Keep Boot's default executor (and default @Async target) even though the email pool is an Executor bean too,
+      # so nothing else ever lands on the small email pool by accident.
+      mode: force
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}
     port: ${SMTP_PORT:587}
