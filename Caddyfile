@@ -6,8 +6,17 @@
 		reverse_proxy app:8080
 	}
 
-	# The Angular frontend is routed here from P4.
+	# Everything else is the Angular app (nginx, P4). The app sets these headers on its own
+	# responses; these cover the frontend's (D-10 CSP). "defer" applies them after the proxy
+	# copies nginx's headers, so they always win.
 	handle {
-		respond "Not Found" 404
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			X-Content-Type-Options nosniff
+			Referrer-Policy no-referrer
+			X-Frame-Options DENY
+			defer
+		}
+		reverse_proxy frontend:8080
 	}
 }
