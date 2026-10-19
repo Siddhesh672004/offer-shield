@@ -146,6 +146,30 @@ class MembershipRequestTest extends IntegrationTest {
     }
 
     @Test
+    void create_blankAfterTrim_400() throws Exception {
+        UUID student = fixtures.student();
+        UUID college = fixtures.college("Blank");
+
+        join(student, college, "   ", "Civil").andExpect(status().isBadRequest());
+        join(student, college, "CS-113", "   ").andExpect(status().isBadRequest());
+
+        assertThat(memberships.findByUserId(student)).isEmpty();
+    }
+
+    /** The size limits apply to what is stored: surrounding spaces don't count. */
+    @Test
+    void create_maxLengthPlusSpaces_201Trimmed() throws Exception {
+        UUID student = fixtures.student();
+        String rollNo = "R".repeat(50);
+        String department = "D".repeat(100);
+
+        join(student, fixtures.college("MaxLength"), "  " + rollNo + "  ", " " + department + " ")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.rollNo").value(rollNo))
+                .andExpect(jsonPath("$.department").value(department));
+    }
+
+    @Test
     void tpo_cannotRequest_403() throws Exception {
         UUID college = fixtures.college("TpoJoin");
         UUID tpo = fixtures.tpo(college);

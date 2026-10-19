@@ -1,28 +1,27 @@
 package com.offershield.membership;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.offershield.auth.AppUserRepository;
 import com.offershield.auth.OidcUserProvisioningService;
 import com.offershield.auth.Role;
 import com.offershield.college.CollegeRepository;
+import com.offershield.support.LogCapture;
 import com.offershield.support.MailIntegrationTest;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.util.UUID;
 
 import static com.offershield.support.RealCsrf.xsrf;
 import static com.offershield.support.TestPrincipals.signedIn;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,6 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MembershipEmailIT extends MailIntegrationTest {
 
     private static final String REASON = "Department R-555 is not part of this drive";
+    private static final Duration DELIVERY = Duration.ofSeconds(10);
+    private static final Duration QUIET = Duration.ofSeconds(1);
 
     @Autowired
     private MembershipService membershipService;
@@ -48,8 +49,7 @@ class MembershipEmailIT extends MailIntegrationTest {
     @Autowired
     private CollegeRepository colleges;
 
-    private final Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
-    private ListAppender<ILoggingEvent> logs;
+    private LogCapture logs;
     private MembershipFixtures fixtures;
     private UUID college;
     private UUID tpo;
@@ -64,14 +64,12 @@ class MembershipEmailIT extends MailIntegrationTest {
         student = fixtures.student();
         membershipId = membershipService.request(student,
                 new CreateMembershipRequest(college, "R-555", "Electronics")).id();
-        logs = new ListAppender<>();
-        logs.start();
-        root.addAppender(logs);
+        logs = LogCapture.root();
     }
 
     @AfterEach
     void detachAppender() {
-        root.detachAppender(logs);
+        logs.close();
     }
 
     @Test
@@ -81,8 +79,10 @@ class MembershipEmailIT extends MailIntegrationTest {
             assertThat(GREEN_MAIL.getReceivedMessages()).as("nothing is sent before commit").isEmpty();
         });
 
-        assertThat(GREEN_MAIL.waitForIncomingEmail(5_000, 1)).isTrue();
-        assertThat(GREEN_MAIL.waitForIncomingEmail(500, 2)).as("exactly one email").isFalse();
+        await().atMost(DELIVERY).until(() -> GREEN_MAIL.getReceivedMessages().length == 1);
+        awaitEmailsSent();
+        await().during(QUIET).atMost(QUIET.plusSeconds(1)).alias("exactly one email")
+                .until(() -> GREEN_MAIL.getReceivedMessages().length == 1);
         MimeMessage[] received = GREEN_MAIL.getReceivedMessages();
         assertThat(received).hasSize(1);
         assertThat(received[0].getAllRecipients()).extracting(Object::toString).containsExactly(fixtures.email(student));
@@ -91,14 +91,15 @@ class MembershipEmailIT extends MailIntegrationTest {
     }
 
     @Test
-    void decisionRolledBack_noEmail() {
+    void decisionRolledBack_noEmail() throws Exception {
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
             membershipService.decide(tpo, membershipId, 0L,
                     new MembershipDecisionRequest(MembershipDecision.REJECT, REASON));
             status.setRollbackOnly();
         });
 
-        assertThat(GREEN_MAIL.waitForIncomingEmail(1_000, 1)).isFalse();
+        awaitEmailsSent();
+        await().during(QUIET).atMost(QUIET.plusSeconds(1)).until(() -> GREEN_MAIL.getReceivedMessages().length == 0);
         Membership saved = memberships.findById(membershipId).orElseThrow();
         assertThat(saved.getStatus()).isEqualTo(MembershipStatus.PENDING);
         assertThat(saved.getVersion()).isZero();
@@ -114,13 +115,16 @@ class MembershipEmailIT extends MailIntegrationTest {
                             .content("{\"decision\":\"REJECT\",\"reason\":\"" + REASON + "\"}"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.status").value("REJECTED"));
+            // The send fails on the email pool; wait for it before SMTP comes back, or it might succeed instead.
+            await().atMost(DELIVERY).untilAsserted(() -> assertThat(logs.events())
+                    .filteredOn(event -> event.getFormattedMessage().startsWith("email failed: "))
+                    .singleElement()
+                    .satisfies(event -> assertThat(event.getThreadName()).startsWith("email-")));
         } finally {
             GREEN_MAIL.start();
         }
 
         assertThat(memberships.findById(membershipId).orElseThrow().getStatus()).isEqualTo(MembershipStatus.REJECTED);
-        assertThat(logs.list).extracting(ILoggingEvent::getFormattedMessage)
-                .anySatisfy(line -> assertThat(line).startsWith("email failed: "));
         assertNoPersonalDataLogged();
     }
 
@@ -128,7 +132,7 @@ class MembershipEmailIT extends MailIntegrationTest {
     private void assertNoPersonalDataLogged() {
         String email = fixtures.email(student);
         String name = fixtures.name(student);
-        assertThat(logs.list).filteredOn(event -> !event.getLoggerName().startsWith("com.icegreen")).allSatisfy(event -> {
+        assertThat(logs.events()).filteredOn(event -> !event.getLoggerName().startsWith("com.icegreen")).allSatisfy(event -> {
             assertThat(event.getFormattedMessage())
                     .doesNotContain(email).doesNotContain(name).doesNotContain("R-555").doesNotContain(REASON);
             if (event.getThrowableProxy() != null) {

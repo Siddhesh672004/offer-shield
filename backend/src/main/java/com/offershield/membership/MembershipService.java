@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -57,16 +58,13 @@ public class MembershipService {
         }
         CollegeSummary college = collegeService.findActiveSummary(request.collegeId())
                 .orElseThrow(() -> new NotFoundException("College not found"));
-        String rollNo = request.rollNo().trim();
-        String department = request.department().trim();
-
         Optional<Membership> existing = memberships.findByUserId(userId);
         Membership membership;
         if (existing.isEmpty()) {
-            membership = Membership.request(userId, college.id(), rollNo, department);
+            membership = Membership.request(userId, college.id(), request.rollNo(), request.department());
         } else if (existing.get().getStatus() == MembershipStatus.REJECTED) {
             membership = existing.get();
-            membership.reapply(college.id(), rollNo, department);
+            membership.reapply(college.id(), request.rollNo(), request.department());
         } else {
             throw new MembershipExistsException();
         }
@@ -90,11 +88,13 @@ public class MembershipService {
         return memberships.findByUserId(userId).map(membership -> MembershipResponse.from(membership, collegeName(membership)));
     }
 
-    /** The TPO's own college queue, oldest request first. */
+    /** The TPO's own college queue, oldest request first. Student contacts come from one query for the whole list. */
     public List<PendingMembershipResponse> listPending(UUID tpoUserId) {
         UUID collegeId = requireTpoCollege(tpoUserId);
-        return memberships.findPending(collegeId).stream()
-                .map(membership -> PendingMembershipResponse.from(membership, student(membership)))
+        List<Membership> pending = memberships.findPending(collegeId);
+        Map<UUID, UserContact> students = userDirectory.findContacts(pending.stream().map(Membership::getUserId).toList());
+        return pending.stream()
+                .map(membership -> PendingMembershipResponse.from(membership, studentFrom(students, membership)))
                 .toList();
     }
 
@@ -145,6 +145,14 @@ public class MembershipService {
     private UserContact student(Membership membership) {
         return userDirectory.findContact(membership.getUserId())
                 .orElseThrow(() -> new IllegalStateException("Membership without a user row"));
+    }
+
+    private static UserContact studentFrom(Map<UUID, UserContact> students, Membership membership) {
+        UserContact student = students.get(membership.getUserId());
+        if (student == null) {
+            throw new IllegalStateException("Membership without a user row");
+        }
+        return student;
     }
 
     private String collegeName(Membership membership) {

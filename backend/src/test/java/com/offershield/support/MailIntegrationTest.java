@@ -2,16 +2,20 @@ package com.offershield.support;
 
 import com.icegreen.greenmail.configuration.GreenMailConfiguration;
 import com.icegreen.greenmail.junit5.GreenMailExtension;
-import com.icegreen.greenmail.store.FolderException;
 import com.icegreen.greenmail.util.ServerSetup;
+import com.offershield.notification.EmailAsyncConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.ServerSocket;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link IntegrationTest} plus a real SMTP server (GreenMail) that the application's JavaMailSender talks to.
@@ -40,9 +44,24 @@ public abstract class MailIntegrationTest extends IntegrationTest {
         registry.add("spring.mail.properties[mail.smtp.starttls.required]", () -> "false");
     }
 
+    @Autowired
+    @Qualifier(EmailAsyncConfig.EMAIL_EXECUTOR)
+    private ThreadPoolTaskExecutor emailExecutor;
+
+    /** Emails from an earlier test may still be in flight on the email pool; let them land before purging. */
     @BeforeEach
-    void purgeMailboxes() throws FolderException {
+    void purgeMailboxes() throws Exception {
+        awaitEmailsSent();
         GREEN_MAIL.purgeEmailFromAllMailboxes();
+    }
+
+    /**
+     * Waits until every email handed to the email pool so far has been sent (or has failed). The pool has one core
+     * thread and the queue is never full in tests, so tasks run in submission order: once a no-op submitted now has
+     * run, so has everything before it.
+     */
+    protected void awaitEmailsSent() throws Exception {
+        emailExecutor.submit(() -> { }).get(30, TimeUnit.SECONDS);
     }
 
     private static int freePort() {

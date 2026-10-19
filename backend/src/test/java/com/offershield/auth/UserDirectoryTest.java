@@ -2,11 +2,19 @@ package com.offershield.auth;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class UserDirectoryTest {
@@ -29,6 +37,30 @@ class UserDirectoryTest {
         when(repository.findById(id)).thenReturn(Optional.empty());
 
         assertThat(directory.findContact(id)).isEmpty();
+    }
+
+    @Test
+    void findContacts_manyUsers_oneRepositoryCallKeyedById() {
+        AppUser first = AppUser.create("sub-4", "first@example.com", true, "First Student");
+        AppUser second = AppUser.create("sub-5", "second@example.com", false, "Second Student");
+        UUID unknown = UUID.randomUUID();
+        when(repository.findAllById(any())).thenReturn(List.of(first, second));
+
+        Map<UUID, UserContact> contacts = directory.findContacts(
+                List.of(first.getId(), second.getId(), unknown, first.getId()));
+
+        assertThat(contacts).containsOnlyKeys(first.getId(), second.getId());
+        assertThat(contacts.get(second.getId()))
+                .isEqualTo(new UserContact(second.getId(), "second@example.com", "Second Student", false));
+        verify(repository, times(1)).findAllById(Set.of(first.getId(), second.getId(), unknown));
+        verifyNoMoreInteractions(repository);
+    }
+
+    @Test
+    void findContacts_noIds_noQuery() {
+        assertThat(directory.findContacts(List.of())).isEmpty();
+
+        verifyNoInteractions(repository);
     }
 
     @Test

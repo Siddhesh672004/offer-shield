@@ -8,7 +8,10 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,6 +42,8 @@ class OidcUserProvisioningServiceTest {
     private TpoAssignmentRepository assignments;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private RoleLookup roleLookup;
 
     private OidcUserProvisioningService service;
 
@@ -49,7 +55,15 @@ class OidcUserProvisioningServiceTest {
 
     private OidcUserProvisioningService provisioningWithAdmins(List<String> adminEmails) {
         return new OidcUserProvisioningService(users, assignments, new AdminProperties(adminEmails), auditLogService,
-                TransactionOperations.withoutTransaction());
+                roleLookup, TransactionOperations.withoutTransaction());
+    }
+
+    @Test
+    void newTransactionPerAttempt_requiresNew() {
+        TransactionTemplate template = OidcUserProvisioningService.newTransactionPerAttempt(
+                mock(PlatformTransactionManager.class));
+
+        assertThat(template.getPropagationBehavior()).isEqualTo(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** Two first sign-ins with one sub: the loser's INSERT hits uk_app_user_google_sub, so it re-reads and updates. */
@@ -247,6 +261,18 @@ class OidcUserProvisioningServiceTest {
 
         assertThat(result.role()).isEqualTo(Role.USER);
         assertThat(formerAdmin.getRole()).isEqualTo(Role.USER);
+        verify(roleLookup).evict(formerAdmin.getId());
+    }
+
+    @Test
+    void existingUser_roleUnchanged_cachedRoleKept() {
+        AppUser student = AppUser.create(SUB, "student@example.com", true, "Test Student");
+        when(users.findByGoogleSub(SUB)).thenReturn(Optional.of(student));
+        when(assignments.findByEmail("student@example.com")).thenReturn(Optional.empty());
+
+        service.provision(new OidcIdentity(SUB, "student@example.com", true, "Test Student"));
+
+        verifyNoInteractions(roleLookup);
     }
 
     @Test

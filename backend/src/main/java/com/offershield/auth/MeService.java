@@ -27,16 +27,20 @@ public class MeService {
     }
 
     /**
-     * A TPO (or an admin assigned to a college) sees the college they manage; anyone else sees the college of their
-     * own join request, whatever its status. {@code membershipStatus} is that request's status, or NONE.
+     * A student (USER) sees the college of their own join request, whatever its status, and that request's status
+     * (NONE without one). Staff never act as students: a TPO, or an admin, sees the college they manage (none for an
+     * admin without one) and status NONE, even if an old join request from their student days is still stored.
      */
     @Transactional(readOnly = true)
     public MeResponse me(UUID userId) {
         AppUser user = users.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        if (user.getRole() != Role.USER) {
+            CollegeSummary managed = user.getTpoCollegeId() == null ? null
+                    : collegeService.findSummary(user.getTpoCollegeId()).orElse(null);
+            return new MeResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(), managed, NO_MEMBERSHIP);
+        }
         Optional<MembershipResponse> membership = membershipService.findForUser(userId);
-        CollegeSummary college = user.getTpoCollegeId() != null
-                ? collegeService.findSummary(user.getTpoCollegeId()).orElse(null)
-                : membership.map(m -> new CollegeSummary(m.collegeId(), m.collegeName())).orElse(null);
+        CollegeSummary college = membership.map(m -> new CollegeSummary(m.collegeId(), m.collegeName())).orElse(null);
         String membershipStatus = membership.map(m -> m.status().name()).orElse(NO_MEMBERSHIP);
         return new MeResponse(user.getId(), user.getName(), user.getEmail(), user.getRole(), college, membershipStatus);
     }

@@ -14,6 +14,10 @@ import org.springframework.security.oauth2.jwt.JwtDecoderFactory;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -54,10 +58,15 @@ public class SecurityConfig {
                                             ProblemDetailAccessDeniedHandler accessDeniedHandler,
                                             ProblemResponseWriter problemResponseWriter,
                                             OAuth2AuthorizedClientRepository authorizedClientRepository,
-                                            GoogleHttpClients googleHttpClients) throws Exception {
+                                            GoogleHttpClients googleHttpClients,
+                                            RoleLookup roleLookup) throws Exception {
         RequestMatcher api = PathPatternRequestMatcher.withDefaults().matcher("/api/**");
+        // Spring Security's default, made explicit so the role-refresh filter saves to the same place sign-in does.
+        SecurityContextRepository securityContextRepository = new DelegatingSecurityContextRepository(
+                new RequestAttributeSecurityContextRepository(), new HttpSessionSecurityContextRepository());
 
         http
+                .securityContext(context -> context.securityContextRepository(securityContextRepository))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/ping", "/actuator/health", "/actuator/health/**", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -83,6 +92,8 @@ public class SecurityConfig {
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
                         .frameOptions(frame -> frame.deny()))
+                .addFilterBefore(new SessionRoleRefreshFilter(roleLookup, securityContextRepository),
+                        AuthorizationFilter.class)
                 .addFilterAfter(new UserMdcFilter(), AuthorizationFilter.class)
                 .addFilterAfter(new UserRateLimitFilter(REQUESTS_PER_MINUTE, problemResponseWriter),
                         AuthorizationFilter.class);

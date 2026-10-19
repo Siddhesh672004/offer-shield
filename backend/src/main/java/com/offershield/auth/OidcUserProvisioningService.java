@@ -1,9 +1,13 @@
 package com.offershield.auth;
 
 import com.offershield.common.audit.AuditLogService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -24,15 +28,26 @@ public class OidcUserProvisioningService {
     private final TpoAssignmentRepository assignments;
     private final AdminProperties adminProperties;
     private final AuditLogService auditLogService;
+    private final RoleLookup roleLookup;
     private final TransactionOperations transactions;
 
+    @Autowired
     public OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
                                        AdminProperties adminProperties, AuditLogService auditLogService,
-                                       TransactionOperations transactions) {
+                                       RoleLookup roleLookup, PlatformTransactionManager transactionManager) {
+        this(users, assignments, adminProperties, auditLogService, roleLookup,
+                newTransactionPerAttempt(transactionManager));
+    }
+
+    /** For unit tests, which run the attempts without a real transaction. */
+    OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
+                                AdminProperties adminProperties, AuditLogService auditLogService,
+                                RoleLookup roleLookup, TransactionOperations transactions) {
         this.users = users;
         this.assignments = assignments;
         this.adminProperties = adminProperties;
         this.auditLogService = auditLogService;
+        this.roleLookup = roleLookup;
         this.transactions = transactions;
     }
 
@@ -49,6 +64,19 @@ public class OidcUserProvisioningService {
         }
     }
 
+    /**
+     * Each attempt is its own physical transaction (REQUIRES_NEW), even when a caller is already inside one. With the
+     * default REQUIRED, both attempts would join the caller's transaction: the failed INSERT would already have marked
+     * it rollback-only, and the failed entity would still sit in its persistence context, so the retry could neither
+     * commit nor cleanly re-read the winner's row. With REQUIRES_NEW the losing attempt rolls back alone and the retry
+     * starts with a fresh EntityManager that sees the committed row.
+     */
+    static TransactionTemplate newTransactionPerAttempt(PlatformTransactionManager transactionManager) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template;
+    }
+
     private ProvisionedUser provisionOnce(OidcIdentity identity) {
         String email = normalise(identity.email());
         String name = truncate(identity.name());
@@ -58,6 +86,10 @@ public class OidcUserProvisioningService {
         user.updateIdentity(email, identity.emailVerified(), name);
 
         Role role = resolveRole(user, email, identity.emailVerified());
+        if (role != user.getRole()) {
+            // The user's other signed-in sessions pick the new role up on their next request.
+            roleLookup.evict(user.getId());
+        }
         user.changeRole(role);
         users.save(user);
         return new ProvisionedUser(user.getId(), role);

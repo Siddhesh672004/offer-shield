@@ -1,6 +1,9 @@
 package com.offershield.auth;
 
 import com.offershield.common.audit.AuditLogService;
+import com.offershield.common.web.ConflictException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,16 +29,22 @@ public class TpoAssignmentService {
 
     static final String TPO_ASSIGNED = "TPO_ASSIGNED";
     static final String TPO_ASSIGNMENT_CREATED = "TPO_ASSIGNMENT_CREATED";
+    private static final String ACCENT_VARIANT_PENDING = "A pending TPO assignment exists for an address that differs "
+            + "only in accents from this one. Check the exact address with the TPO and try again.";
+    private static final String CONCURRENT_CHANGE =
+            "This TPO assignment was changed at the same time by someone else. Reload and try again.";
 
     private final AppUserRepository users;
     private final TpoAssignmentRepository assignments;
     private final AuditLogService auditLogService;
+    private final RoleLookup roleLookup;
 
     public TpoAssignmentService(AppUserRepository users, TpoAssignmentRepository assignments,
-                                AuditLogService auditLogService) {
+                                AuditLogService auditLogService, RoleLookup roleLookup) {
         this.users = users;
         this.assignments = assignments;
         this.auditLogService = auditLogService;
+        this.roleLookup = roleLookup;
     }
 
     /** The caller has already checked that {@code collegeId} exists. */
@@ -50,6 +59,8 @@ public class TpoAssignmentService {
 
         if (!verifiedUsers.isEmpty()) {
             verifiedUsers.forEach(user -> promote(user, collegeId, adminId));
+            // A leftover pending row for this exact email would move them to its (older) college at next sign-in.
+            findExactPending(normalised).ifPresent(assignments::delete);
             return new TpoAssignmentResult(normalised, TpoAssignmentStatus.ASSIGNED);
         }
 
@@ -76,20 +87,36 @@ public class TpoAssignmentService {
         if (user.getRole() != Role.ADMIN) {
             user.changeRole(Role.TPO);
         }
+        // Already signed in? The session gets the new role on its next request (SessionRoleRefreshFilter).
+        roleLookup.evict(user.getId());
         auditLogService.record(adminId, TPO_ASSIGNED, user.getId());
     }
 
     /**
      * One pending row per email (unique key). Re-assigning replaces the old row; the delete is flushed first
-     * because Hibernate runs inserts before deletes, which would trip the unique key.
+     * because Hibernate runs inserts before deletes, which would trip the unique key. The key is accent-insensitive,
+     * so a row for an address that differs only in accents blocks this one: refuse (409) rather than silently
+     * replacing another person's assignment. A concurrent admin changing the same row also gets 409.
      */
     private void upsertPendingAssignment(String email, UUID collegeId, UUID adminId) {
         Optional<TpoAssignment> existing = assignments.findByEmail(email);
-        if (existing.isPresent()) {
-            assignments.delete(existing.get());
-            assignments.flush();
+        if (existing.isPresent() && !existing.get().getEmail().equals(email)) {
+            throw new ConflictException(ACCENT_VARIANT_PENDING);
         }
-        assignments.save(TpoAssignment.create(email, collegeId, adminId));
+        try {
+            if (existing.isPresent()) {
+                assignments.delete(existing.get());
+                assignments.flush();
+            }
+            assignments.saveAndFlush(TpoAssignment.create(email, collegeId, adminId));
+        } catch (DataIntegrityViolationException | OptimisticLockingFailureException ex) {
+            throw new ConflictException(CONCURRENT_CHANGE);
+        }
+    }
+
+    /** The pending row for exactly this email; the column's collation also matches accent variants. */
+    private Optional<TpoAssignment> findExactPending(String email) {
+        return assignments.findByEmail(email).filter(assignment -> assignment.getEmail().equals(email));
     }
 
     private static <T> Map<UUID, List<String>> sortedEmailsByCollege(List<T> rows, Function<T, UUID> college,

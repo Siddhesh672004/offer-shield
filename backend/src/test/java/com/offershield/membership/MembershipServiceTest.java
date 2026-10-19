@@ -19,13 +19,17 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -65,6 +69,28 @@ class MembershipServiceTest {
                     assertThat(ex.status().value()).isEqualTo(409);
                     assertThat(ex.errorCode()).isEqualTo("MEMBERSHIP_EXISTS");
                 });
+    }
+
+    /** One contact query for the whole queue, not one per row (N+1). */
+    @Test
+    void listPending_manyRows_contactsLoadedInOneCall() {
+        List<UUID> students = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        List<Membership> rows = students.stream().map(student -> {
+            Membership membership = Membership.request(student, collegeId, "RN-" + student, "Civil");
+            ReflectionTestUtils.setField(membership, "version", 0L);
+            return membership;
+        }).toList();
+        when(userDirectory.findTpoCollegeId(tpoId)).thenReturn(Optional.of(collegeId));
+        when(memberships.findPending(collegeId)).thenReturn(rows);
+        when(userDirectory.findContacts(students)).thenReturn(students.stream().collect(Collectors.toMap(
+                Function.identity(), id -> new UserContact(id, id + "@example.com", "Student " + id, true))));
+
+        List<PendingMembershipResponse> pending = service.listPending(tpoId);
+
+        assertThat(pending).extracting(PendingMembershipResponse::studentEmail)
+                .containsExactlyElementsOf(students.stream().map(id -> id + "@example.com").toList());
+        verify(userDirectory, times(1)).findContacts(students);
+        verify(userDirectory, never()).findContact(any());
     }
 
     @Test
