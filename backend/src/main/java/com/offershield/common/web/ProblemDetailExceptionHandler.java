@@ -1,5 +1,6 @@
 package com.offershield.common.web;
 
+import com.offershield.common.logging.LogContext;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ public class ProblemDetailExceptionHandler extends ResponseEntityExceptionHandle
         problem.setTitle(status.getReasonPhrase());
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("errorCode", errorCode);
-        String requestId = MDC.get("requestId");
+        String requestId = MDC.get(LogContext.REQUEST_ID);
         if (requestId != null) {
             problem.setProperty("requestId", requestId);
         }
