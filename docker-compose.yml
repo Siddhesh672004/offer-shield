@@ -32,6 +32,9 @@ services:
       DB_USERNAME: offershield_app
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is not set in .env}
       KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:-kafka:9092}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-not-configured}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-not-configured}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       LOG_DIR: /app/logs
     volumes:
       - ./logs:/app/logs

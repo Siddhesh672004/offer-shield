@@ -22,9 +22,25 @@ spring:
       enabled: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:not-configured}
+            client-secret: ${GOOGLE_CLIENT_SECRET:not-configured}
+            scope: openid,email,profile
 
 server:
   shutdown: graceful
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 4h
+      cookie:
+        http-only: true
+        secure: true
+        same-site: lax
 
 management:
   endpoints:
@@ -34,3 +50,7 @@ management:
   endpoint:
     health:
       show-details: never
+
+offershield:
+  admin:
+    emails: ${ADMIN_EMAILS:}
