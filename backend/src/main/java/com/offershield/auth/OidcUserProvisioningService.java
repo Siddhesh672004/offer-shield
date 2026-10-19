@@ -1,8 +1,9 @@
 package com.offershield.auth;
 
 import com.offershield.common.audit.AuditLogService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -23,17 +24,32 @@ public class OidcUserProvisioningService {
     private final TpoAssignmentRepository assignments;
     private final AdminProperties adminProperties;
     private final AuditLogService auditLogService;
+    private final TransactionOperations transactions;
 
     public OidcUserProvisioningService(AppUserRepository users, TpoAssignmentRepository assignments,
-                                       AdminProperties adminProperties, AuditLogService auditLogService) {
+                                       AdminProperties adminProperties, AuditLogService auditLogService,
+                                       TransactionOperations transactions) {
         this.users = users;
         this.assignments = assignments;
         this.adminProperties = adminProperties;
         this.auditLogService = auditLogService;
+        this.transactions = transactions;
     }
 
-    @Transactional
+    /**
+     * Two first sign-ins with the same {@code sub} (e.g. two tabs) can both find no row and both INSERT; the loser's
+     * INSERT breaks {@code uk_app_user_google_sub} at commit. Its transaction is then rolled back, so a fresh one
+     * re-reads the row by {@code sub} and updates it instead. A second failure is a real error and propagates.
+     */
     public ProvisionedUser provision(OidcIdentity identity) {
+        try {
+            return transactions.execute(status -> provisionOnce(identity));
+        } catch (DataIntegrityViolationException ex) {
+            return transactions.execute(status -> provisionOnce(identity));
+        }
+    }
+
+    private ProvisionedUser provisionOnce(OidcIdentity identity) {
         String email = normalise(identity.email());
         String name = truncate(identity.name());
 

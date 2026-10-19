@@ -130,6 +130,16 @@ class UserProvisioningIT extends IntegrationTest {
     }
 
     @Test
+    void provision_concurrentFirstSignInsWithOneSub_allSucceedOnOneRow() throws Exception {
+        List<ProvisionedUser> results = concurrently(RACERS, i -> provisioning.provision(
+                new OidcIdentity("it-sub-race-first", "racer@example.com", true, "Test Racer")));
+
+        assertThat(results).extracting(ProvisionedUser::userId).containsOnly(results.getFirst().userId());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM app_user WHERE google_sub = 'it-sub-race-first'",
+                Integer.class)).isEqualTo(1);
+    }
+
+    @Test
     void provision_concurrentSignInsForOneAssignment_exactlyOneBecomesTpo() throws Exception {
         College college = colleges.saveAndFlush(College.create("Race IT College", null));
         AppUser assigner = users.saveAndFlush(AppUser.create("it-sub-assigner-4", "assigner4@example.com", true, null));

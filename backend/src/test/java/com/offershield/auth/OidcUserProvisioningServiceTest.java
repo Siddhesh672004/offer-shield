@@ -7,16 +7,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -44,7 +48,35 @@ class OidcUserProvisioningServiceTest {
     }
 
     private OidcUserProvisioningService provisioningWithAdmins(List<String> adminEmails) {
-        return new OidcUserProvisioningService(users, assignments, new AdminProperties(adminEmails), auditLogService);
+        return new OidcUserProvisioningService(users, assignments, new AdminProperties(adminEmails), auditLogService,
+                TransactionOperations.withoutTransaction());
+    }
+
+    /** Two first sign-ins with one sub: the loser's INSERT hits uk_app_user_google_sub, so it re-reads and updates. */
+    @Test
+    void firstLoginRace_duplicateSubOnInsert_rereadsBySubAndUpdatesThatRow() {
+        AppUser winner = AppUser.create(SUB, "student@example.com", true, "Test Student");
+        when(users.findByGoogleSub(SUB)).thenReturn(Optional.empty(), Optional.of(winner));
+        when(users.save(any(AppUser.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate sub"))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProvisionedUser result = service.provision(new OidcIdentity(SUB, "student@example.com", true, "Test Student"));
+
+        assertThat(result.userId()).isEqualTo(winner.getId());
+        assertThat(result.role()).isEqualTo(Role.USER);
+        verify(users, times(2)).findByGoogleSub(SUB);
+        verify(users).save(winner);
+    }
+
+    @Test
+    void firstLoginRace_retryAlsoViolatesConstraint_exceptionPropagates() {
+        when(users.findByGoogleSub(SUB)).thenReturn(Optional.empty());
+        when(users.save(any(AppUser.class))).thenThrow(new DataIntegrityViolationException("still failing"));
+
+        assertThatThrownBy(() -> service.provision(new OidcIdentity(SUB, "student@example.com", true, "Test Student")))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        verify(users, times(2)).save(any(AppUser.class));
     }
 
     @Test
