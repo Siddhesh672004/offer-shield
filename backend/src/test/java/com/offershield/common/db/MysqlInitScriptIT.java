@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MysqlInitScriptIT {
 
     private static final Path SCRIPT = Path.of("..", "infra", "mysql", "init", "01-app-user.sh");
+    private static final String IN_CONTAINER = "/docker-entrypoint-initdb.d/01-app-user.sh";
     private static final String ROOT_PASSWORD = "R00t#pa$s;w@rd!";
     private static final String APP_PASSWORD = "Ap'p\\x\"y$z#1\\";
 
@@ -35,7 +36,7 @@ class MysqlInitScriptIT {
     static GenericContainer<?> mysql = new GenericContainer<>("mysql:8.4")
             .withEnv("MYSQL_ROOT_PASSWORD", ROOT_PASSWORD)
             .withEnv("DB_PASSWORD", APP_PASSWORD)
-            .withCopyFileToContainer(MountableFile.forHostPath(SCRIPT, 0755), "/docker-entrypoint-initdb.d/01-app-user.sh")
+            .withCopyFileToContainer(MountableFile.forHostPath(SCRIPT, 0755), IN_CONTAINER)
             .withExposedPorts(3306)
             .waitingFor(Wait.forLogMessage(".*ready for connections.*port: 3306.*\\n", 1)
                     .withStartupTimeout(Duration.ofMinutes(3)));
@@ -58,8 +59,43 @@ class MysqlInitScriptIT {
     void initScript_rootPasswordNotInEnvironmentOfClient_optionFileRemoved() throws Exception {
         assertThat(Files.readString(SCRIPT)).doesNotContain("MYSQL_PWD");
 
-        ExecResult leftovers = mysql.execInContainer("sh", "-c", "ls -A /tmp | grep -c offershield || true");
-        assertThat(leftovers.getStdout().trim()).isEqualTo("0");
+        assertThat(leftoverOptionFiles()).isZero();
+    }
+
+    @Test
+    void initScript_mysqlRejectsRootPassword_failsAndOptionFileRemoved() throws Exception {
+        ExecResult run = mysql.execInContainer("bash", "-c",
+                "MYSQL_ROOT_PASSWORD=wrong-root-password bash " + IN_CONTAINER + "; echo \"exit=$?\"");
+
+        assertThat(run.getStdout()).contains("exit=").doesNotContain("exit=0");
+        assertThat(run.getStderr()).contains("creating the app user failed");
+        assertThat(leftoverOptionFiles()).isZero();
+    }
+
+    /** Fails right after the option file is created (a chmod that always fails): the file must still go. */
+    @Test
+    void initScript_failsAfterOptionFileCreated_optionFileStillRemoved() throws Exception {
+        ExecResult run = mysql.execInContainer("bash", "-c", "mkdir -p /tmp/failing-bin"
+                + " && printf '#!/bin/sh\\nexit 1\\n' > /tmp/failing-bin/chmod && chmod 755 /tmp/failing-bin/chmod"
+                + " && PATH=/tmp/failing-bin:$PATH bash " + IN_CONTAINER + "; echo \"exit=$?\"; rm -rf /tmp/failing-bin");
+
+        assertThat(run.getStdout()).contains("exit=").doesNotContain("exit=0");
+        assertThat(leftoverOptionFiles()).isZero();
+    }
+
+    /** The image's entrypoint sources init scripts that aren't executable: our cleanup trap must not stay behind. */
+    @Test
+    void initScript_sourced_leavesNoExitTrapInCallingShell() throws Exception {
+        ExecResult run = mysql.execInContainer("bash", "-c", "source " + IN_CONTAINER + " && trap -p EXIT && echo done");
+
+        assertThat(run.getExitCode()).isZero();
+        assertThat(run.getStdout().trim()).isEqualTo("done");
+        assertThat(leftoverOptionFiles()).isZero();
+    }
+
+    private static int leftoverOptionFiles() throws Exception {
+        ExecResult leftovers = mysql.execInContainer("sh", "-c", "ls -A /tmp | grep -c '^offershield-init\\.' || true");
+        return Integer.parseInt(leftovers.getStdout().trim());
     }
 
     private static String single(Statement statement, String sql) throws Exception {
