@@ -178,6 +178,20 @@ class MembershipRequestTest extends IntegrationTest {
     }
 
     @Test
+    void authMe_afterRequest_showsCollegeAndPending() throws Exception {
+        UUID student = fixtures.student();
+        UUID college = fixtures.college("AuthMe");
+        join(student, college, "CS-112", "Civil").andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/auth/me").with(signedIn(student, Role.USER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.role").value("USER"))
+                .andExpect(jsonPath("$.college.id").value(college.toString()))
+                .andExpect(jsonPath("$.college.name").value(fixtures.collegeName(college)))
+                .andExpect(jsonPath("$.membershipStatus").value("PENDING"));
+    }
+
+    @Test
     void me_otherStudentsMembershipNeverVisible() throws Exception {
         UUID owner = fixtures.student();
         join(owner, fixtures.college("Owner"), "CS-110", "Civil").andExpect(status().isCreated());
