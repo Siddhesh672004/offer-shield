@@ -20,6 +20,14 @@ export function readProblem(error: unknown): ProblemDetail | undefined {
   return typeof body === 'object' && body !== null ? (body as ProblemDetail) : undefined;
 }
 
+/**
+ * A 401: the session ended. `unauthorizedInterceptor` already sends the user to
+ * `/login?session=ended`, so pages show and announce nothing of their own for it.
+ */
+export function isSessionEnded(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 401;
+}
+
 /** The machine-readable `errorCode`, e.g. `MEMBERSHIP_EXISTS`. */
 export function problemCode(error: unknown): string | undefined {
   const code = readProblem(error)?.errorCode;

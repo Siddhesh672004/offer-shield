@@ -63,7 +63,7 @@ describe('authGuard', () => {
     expect(router.url).toBe('/login?login=failed');
   });
 
-  it('serverUnreachable_redirectsToLogin', async () => {
+  it('serverUnreachable_redirectsToLoginKeepingTarget', async () => {
     await answerSessionProbe('unreachable');
     const harness = await RouterTestingHarness.create();
 
@@ -73,7 +73,20 @@ describe('authGuard', () => {
     retry.flush('Bad Gateway', { status: 502, statusText: 'Bad Gateway' });
     await navigation;
 
-    expect(router.url).toBe('/login');
+    expect(router.url).toBe('/login?unreachable=1&next=%2Fapp');
+  });
+
+  it('networkError_redirectsToLoginKeepingDeepLinkWithQuery', async () => {
+    const harness = await RouterTestingHarness.create();
+
+    const navigation = harness.navigateByUrl('/app?ref=mail');
+    const probe = await vi.waitFor(() => http.expectOne('/api/auth/me'));
+    probe.error(new ProgressEvent('error'));
+    await navigation;
+
+    const loginUrl = router.parseUrl(router.url);
+    expect(loginUrl.root.children['primary']?.toString()).toBe('login');
+    expect(loginUrl.queryParams).toEqual({ unreachable: '1', next: '/app?ref=mail' });
   });
 
   it('firstNavigation_waitsForSessionProbe', async () => {

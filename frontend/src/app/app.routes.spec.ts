@@ -114,4 +114,20 @@ describe('app routes', () => {
   it('join_signedOut_endsAtLogin', async () => {
     expect((await open('signed-out', '/join')).url).toBe('/login');
   });
+
+  it('join_serverUnreachable_endsAtLoginExplainingAndKeepingTarget', async () => {
+    const harness = await RouterTestingHarness.create();
+    const http = TestBed.inject(HttpTestingController);
+
+    const navigation = harness.navigateByUrl('/join');
+    const probe = await vi.waitFor(() => http.expectOne('/api/auth/me'));
+    probe.flush('Bad Gateway', { status: 502, statusText: 'Bad Gateway' });
+    await navigation;
+    await harness.fixture.whenStable();
+
+    expect(router.url).toBe('/login?unreachable=1&next=%2Fjoin');
+    expect(harness.routeNativeElement?.textContent).toContain(
+      "We can't reach OfferShield right now. Try again in a minute.",
+    );
+  });
 });

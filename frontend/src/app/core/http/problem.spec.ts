@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { problemCode, problemDetail, readProblem } from './problem';
+import { isSessionEnded, problemCode, problemDetail, readProblem } from './problem';
 
 function httpError(status: number, body: unknown): HttpErrorResponse {
   return new HttpErrorResponse({ status, error: body, url: '/api/memberships' });
@@ -40,5 +40,17 @@ describe('problem', () => {
 
   it('readProblem_notAnHttpError_returnsUndefined', () => {
     expect(readProblem(new Error('boom'))).toBeUndefined();
+  });
+
+  it('isSessionEnded_401_true', () => {
+    expect(isSessionEnded(httpError(401, { errorCode: 'UNAUTHORIZED' }))).toBe(true);
+  });
+
+  it('isSessionEnded_403_false', () => {
+    expect(isSessionEnded(httpError(403, { errorCode: 'FORBIDDEN' }))).toBe(false);
+  });
+
+  it('isSessionEnded_notAnHttpError_false', () => {
+    expect(isSessionEnded(new Error('boom'))).toBe(false);
   });
 });

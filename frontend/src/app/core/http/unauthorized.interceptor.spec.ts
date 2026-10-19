@@ -48,10 +48,10 @@ describe('unauthorizedInterceptor', () => {
     );
   }
 
-  it('api401_navigatesToLogin', async () => {
+  it('api401_navigatesToLoginSayingSessionEnded', async () => {
     await failWith('/api/memberships/me', unauthorized);
 
-    expect(navigate).toHaveBeenCalledWith('/login');
+    expect(navigate).toHaveBeenCalledWith('/login?session=ended');
   });
 
   it('api401_errorStillReachesCaller', async () => {
