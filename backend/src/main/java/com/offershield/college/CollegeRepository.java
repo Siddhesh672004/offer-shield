@@ -9,4 +9,8 @@ public interface CollegeRepository extends JpaRepository<College, UUID> {
 
     /** {@code Containing} escapes LIKE wildcards in {@code name}, so "%" and "_" match literally. */
     List<College> findTop20ByStatusAndNameContainingIgnoreCaseOrderByNameAsc(CollegeStatus status, String name);
+
+    boolean existsByNameIgnoreCase(String name);
+
+    List<College> findAllByOrderByNameAsc();
 }
