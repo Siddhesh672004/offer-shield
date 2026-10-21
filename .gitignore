@@ -22,3 +22,6 @@ Thumbs.db
 # Claude Code agent worktrees
 .claude/worktrees/
 .superpowers/
+
+# Local live-test files (fake letters only)
+live-test/
