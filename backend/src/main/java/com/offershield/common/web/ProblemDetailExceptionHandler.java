@@ -3,6 +3,7 @@ package com.offershield.common.web;
 import com.offershield.common.logging.LogContext;
 import com.offershield.common.logging.LoggingAspect;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.net.URI;
@@ -56,8 +59,35 @@ public class ProblemDetailExceptionHandler extends ResponseEntityExceptionHandle
     }
 
     @ExceptionHandler(ApiException.class)
-    ProblemDetail handleApiException(ApiException ex, HttpServletRequest request) {
+    ProblemDetail handleApiException(ApiException ex, HttpServletRequest request, HttpServletResponse response) {
+        if (ex instanceof TooManyRequestsException tooMany) {
+            response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(tooMany.retryAfterSeconds()));
+        }
+        if (ex.status().is5xxServerError()) {
+            // P13: a 5xx we chose (SERVER_BUSY, STORAGE_UNAVAILABLE, ...) still means something on our side is short.
+            log.warn("problem status={} errorCode={}", ex.status().value(), ex.errorCode());
+        }
         return problem(ex.status(), ex.getMessage(), ex.errorCode(), request);
+    }
+
+    /** A malformed multipart body (bad boundary, truncated upload): the client's fault, not a 500. */
+    @ExceptionHandler(MultipartException.class)
+    ProblemDetail handleMultipart(MultipartException ex, HttpServletRequest request) {
+        // P13: class names only; the message can quote the request.
+        log.info("problem status=400 errorCode=MULTIPART_INVALID type={} causes={}", ex.getClass().getSimpleName(),
+                causeChain(ex));
+        return problem(HttpStatus.BAD_REQUEST, "The upload could not be read. Please try again.", "MULTIPART_INVALID",
+                request);
+    }
+
+    /** The servlet container refused a part over {@code spring.servlet.multipart.max-file-size} (5 MB). */
+    @Override
+    protected @Nullable ResponseEntity<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException ex,
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE,
+                "The file is larger than 5 MB.");
+        problem.setProperty("errorCode", "FILE_TOO_LARGE");
+        return handleExceptionInternal(ex, problem, headers, HttpStatus.CONTENT_TOO_LARGE, request);
     }
 
     /** {@code @PreAuthorize} denials surface inside MVC; without this they would hit the 500 catch-all. */
