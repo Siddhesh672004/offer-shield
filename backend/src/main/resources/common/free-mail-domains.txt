@@ -1,0 +1,69 @@
+# Free and disposable email providers (D-08, PRD §7.1 C2). One lower-case domain per line; '#' starts a comment.
+# A fixed public list: anyone can sign up for an address on these domains, so a sender here is not a company channel,
+# and none of these domains may ever become a scam marker (D-08, applied in the registry from P9).
+# Sources: the providers' own sign-up pages and widely published free/disposable email provider lists (2026-10).
+
+# Google
+gmail.com
+googlemail.com
+# Microsoft
+outlook.com
+outlook.in
+hotmail.com
+hotmail.co.in
+hotmail.co.uk
+live.com
+live.in
+msn.com
+# Yahoo
+yahoo.com
+yahoo.co.in
+yahoo.in
+yahoo.co.uk
+ymail.com
+rocketmail.com
+# Apple
+icloud.com
+me.com
+mac.com
+# Indian providers
+rediffmail.com
+rediff.com
+indiatimes.com
+sify.com
+# Other large free providers
+aol.com
+aim.com
+zoho.com
+zohomail.com
+zohomail.in
+protonmail.com
+proton.me
+pm.me
+tutanota.com
+tuta.io
+gmx.com
+gmx.net
+mail.com
+email.com
+usa.com
+myself.com
+yandex.com
+yandex.ru
+mail.ru
+inbox.com
+lycos.com
+hushmail.com
+fastmail.com
+qq.com
+163.com
+126.com
+# Disposable inboxes
+mailinator.com
+guerrillamail.com
+10minutemail.com
+temp-mail.org
+yopmail.com
+trashmail.com
+getnada.com
+dispostable.com

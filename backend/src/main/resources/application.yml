@@ -22,6 +22,11 @@ spring:
     problemdetails:
       enabled: true
   task:
+    scheduling:
+      pool:
+        # Two scheduler threads: the daily retention run (which may wait on Cloudinary) never delays the 1-minute
+        # QUEUED-submission sweeper.
+        size: 2
     execution:
       # Keep Boot's default executor (and default @Async target) even though the email pool is an Executor bean too,
       # so nothing else ever lands on the small email pool by accident.
@@ -38,8 +43,45 @@ spring:
       "[mail.smtp.connectiontimeout]": 10000
       "[mail.smtp.timeout]": 10000
       "[mail.smtp.writetimeout]": 10000
+  servlet:
+    multipart:
+      # PRD §14.4: a PDF of at most 5 MB; the rest of the form (pasted text, contacts) fits in the extra 1 MB.
+      max-file-size: 5MB
+      max-request-size: 6MB
+      # Keep parts in memory so uploaded letters are never written to a temp file on disk.
+      file-size-threshold: 6MB
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:kafka:9092}
+    admin:
+      # P13: the broker never auto-creates topics, so if KafkaAdmin cannot reach it or create the topics at startup,
+      # stop (the container restarts) instead of running with every publish failing.
+      fail-fast: true
+    producer:
+      # D-28: confirmed, idempotent sends; fail fast enough that an upload's 202 is not held up for long.
+      acks: all
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        "[enable.idempotence]": true
+        "[max.block.ms]": 5000
+        "[request.timeout.ms]": 10000
+        "[delivery.timeout.ms]": 15000
+    consumer:
+      # A new consumer group starts from the oldest kept record, so nothing published before it joined is skipped.
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      # D-28: a record that is not valid JSON becomes an error for the error handler (straight to the DLT) instead of
+      # failing the poll loop. Each @KafkaListener names the one event type it reads; type headers are ignored, and
+      # only classes from the events package may ever be created.
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        "[spring.deserializer.value.delegate.class]": org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+        "[spring.json.use.type.headers]": false
+        "[spring.json.trusted.packages]": com.offershield.common.events
+    listener:
+      # Commit each record's offset after it was handled (at-least-once; consumers dedupe with processed_event).
+      ack-mode: record
+      auto-startup: true
   security:
     oauth2:
       client:
@@ -75,3 +117,49 @@ management:
 offershield:
   admin:
     emails: ${ADMIN_EMAILS:}
+  crypto:
+    # 32 random bytes, Base64 (openssl rand -base64 32). Startup fails without it.
+    text-key-base64: ${TEXT_AES_KEY_BASE64:}
+  registry:
+    # HMAC-SHA256 pepper for phone numbers and UPI IDs (PRD §10.1), at least 32 characters (openssl rand -base64 48).
+    # Startup fails without it. Losing it breaks every phone/UPI scam marker (06 §2).
+    hmac-pepper: ${INDICATOR_HMAC_PEPPER:}
+  cloudinary:
+    # cloudinary://<api_key>:<api_secret>@<cloud_name>; empty = original PDFs are not kept.
+    url: ${CLOUDINARY_URL:}
+  lookup:
+    # C5/C6 online checks (D-19, D-31). Only a domain that passed the SSRF guard is looked up (PRD §14.5).
+    rdap:
+      bootstrap-url: https://data.iana.org/rdap/dns.json
+      timeout: 5s
+      require-https: true
+      max-body-bytes: 262144
+      cache-ttl: 24h
+    dns:
+      timeout: 3s
+      cache-ttl: 1h
+      # Empty = the system's resolvers (in Docker, the embedded DNS that forwards to the host's resolvers).
+      servers: []
+  ai:
+    # D-11: Groq only. GROQ_API_KEYS blank = AI off: no outbound call, every report says "AI unavailable" (PARTIAL).
+    # Groq limits apply per organization, so only the first key of a comma-separated list is used.
+    api-keys: ${GROQ_API_KEYS:}
+    # Blank = the default chain (AiProperties.DEFAULT_CHAIN); only groq:<model> entries are used.
+    chain: ${AI_CHAIN:}
+    base-url: https://api.groq.com/openai/v1
+    timeout: 10s
+    default-rate-limit-wait: 60s
+    unknown-model-wait: 1h
+    max-letter-chars: 6000
+    extraction-max-tokens: 1200
+    explain-max-tokens: 800
+  submission:
+    pdf-timeout: 10s
+    sweeper:
+      enabled: true
+      interval: 60s
+  retention:
+    # D-06: the daily 30-day cleanup (P11). Spring cron: second minute hour day month weekday, in this time zone.
+    enabled: true
+    cron: "0 30 3 * * *"
+    zone: Asia/Kolkata

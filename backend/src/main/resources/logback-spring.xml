@@ -28,6 +28,13 @@
     <logger name="org.hibernate.orm.jdbc.warn" level="OFF"/>
     <logger name="org.hibernate.engine.jdbc.spi.SqlExceptionHelper" level="OFF"/>
 
+    <!-- Kafka clients print their full config at INFO on every start; warnings and errors are what matter. -->
+    <logger name="org.apache.kafka" level="WARN"/>
+    <logger name="kafka" level="WARN"/>
+    <!-- PDFBox warns about odd fonts in normal letters; failures reach our own code as exceptions anyway. -->
+    <logger name="org.apache.pdfbox" level="ERROR"/>
+    <logger name="org.apache.fontbox" level="ERROR"/>
+
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
