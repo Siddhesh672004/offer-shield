@@ -1,0 +1,19 @@
+Northwind Analytics Private Limited (a fictional company)
+Plot 12, Example Tech Park, Pune
+
+Dear Candidate,
+
+Congratulations! Following your interviews with our engineering panel on 2 and 4 October, we are pleased to offer
+you the position of Graduate Engineer Trainee in our Pune office.
+
+Your annual cost to company will be Rs. 6,00,000, paid monthly into your bank account. We will reimburse your travel
+to Pune for joining. Your joining date is 1 December, and your reporting manager will contact you a week before.
+
+Please confirm your acceptance by replying to talent@northwind-analytics.example within 15 days. For any questions,
+write to the same address or call our office landline during working hours.
+
+We look forward to working with you.
+
+Regards,
+Talent Acquisition Team
+Northwind Analytics Private Limited
