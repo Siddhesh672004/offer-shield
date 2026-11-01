@@ -1,0 +1,13 @@
+Contoso Fictional Systems Limited
+Dear Candidate,
+
+We are happy to offer you the role of Associate Software Engineer after your technical and HR interviews.
+
+Please note: no registration fee is charged at any stage of our hiring process. We never ask candidates to pay
+money, and we do not charge any deposit for training or for a laptop. If anyone asks you for payment in our name,
+please report it to careers@contoso-fictional.example.
+
+Your annual compensation is Rs. 7,20,000. Your joining date will be shared by email.
+
+Regards,
+Campus Hiring Team
