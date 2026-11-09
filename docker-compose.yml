@@ -4,7 +4,7 @@ name: offershield
 # "internal" (app, MySQL, Kafka; no outbound internet). Caddy cannot reach MySQL or Kafka.
 services:
   caddy:
-    image: caddy:2.11.7-alpine
+    image: caddy:2.11.9-alpine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
