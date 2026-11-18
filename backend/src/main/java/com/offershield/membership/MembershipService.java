@@ -88,6 +88,13 @@ public class MembershipService {
         return memberships.findByUserId(userId).map(membership -> MembershipResponse.from(membership, collegeName(membership)));
     }
 
+    /** The college the user is an APPROVED member of right now (on-campus), read from the database. */
+    public Optional<UUID> findApprovedCollegeId(UUID userId) {
+        return memberships.findByUserId(userId)
+                .filter(membership -> membership.getStatus() == MembershipStatus.APPROVED)
+                .map(Membership::getCollegeId);
+    }
+
     /** The TPO's own college queue, oldest request first. Student contacts come from one query for the whole list. */
     public List<PendingMembershipResponse> listPending(UUID tpoUserId) {
         UUID collegeId = requireTpoCollege(tpoUserId);

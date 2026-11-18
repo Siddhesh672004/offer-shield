@@ -70,6 +70,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/ping", "/actuator/health", "/actuator/health/**", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // D-24: the global known-company list is admin-only (the controller checks it again).
+                        .requestMatchers("/api/known-companies/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .oauth2Login(login -> login
                         .authorizedClientRepository(authorizedClientRepository)
