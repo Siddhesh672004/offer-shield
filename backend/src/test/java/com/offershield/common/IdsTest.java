@@ -43,4 +43,17 @@ class IdsTest {
 
         assertThat(embeddedMillis).isBetween(before, after);
     }
+
+    @Test
+    void toBytesFromBytes_roundTripBigEndian() {
+        UUID id = UUID.fromString("0190c9a0-0000-7000-8000-0000000000a1");
+
+        byte[] bytes = Ids.toBytes(id);
+
+        assertThat(bytes).hasSize(16);
+        assertThat(bytes[0]).isEqualTo((byte) 0x01);
+        assertThat(bytes[15]).isEqualTo((byte) 0xa1);
+        assertThat(Ids.fromBytes(bytes)).isEqualTo(id);
+        assertThat(Ids.fromBytes(null)).isNull();
+    }
 }

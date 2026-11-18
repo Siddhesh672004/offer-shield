@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +37,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -330,5 +333,94 @@ class ProblemDetailExceptionHandlerTest extends IntegrationTest {
         String validatedParam(@RequestParam @Size(max = 3) String q) {
             return q;
         }
+
+        @GetMapping("/test/upload-too-large")
+        void uploadTooLarge() {
+            throw new MaxUploadSizeExceededException(5L * 1024 * 1024, new IllegalStateException(INTERNAL_MARKER));
+        }
+
+        @GetMapping("/test/multipart-broken")
+        void multipartBroken() {
+            throw new MultipartException("Failed to parse multipart servlet request " + INTERNAL_MARKER);
+        }
+
+        @GetMapping("/test/multipart-broken-cause")
+        void multipartBrokenWithCause() {
+            throw new MultipartException("Failed to parse " + INTERNAL_MARKER,
+                    new java.io.EOFException(INTERNAL_MARKER));
+        }
+
+        @GetMapping("/test/server-busy")
+        void serverBusy() {
+            throw new ServiceUnavailableException("SERVER_BUSY", "Too many files are being read right now.");
+        }
+
+        @GetMapping("/test/too-many")
+        void tooMany() {
+            throw new TooManyRequestsException("UPLOAD_LIMIT", "Wait a bit.", java.time.Duration.ofMillis(61_500));
+        }
+    }
+
+    @Test
+    void maxUploadSizeExceeded_413FileTooLarge() throws Exception {
+        mockMvc.perform(get("/test/upload-too-large").with(signedIn(Role.USER)))
+                .andExpect(status().is(413))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("FILE_TOO_LARGE"))
+                .andExpect(jsonPath("$.detail").value("The file is larger than 5 MB."))
+                .andExpect(jsonPath("$.requestId").exists());
+        assertMarkerNeverLogged();
+    }
+
+    @Test
+    void brokenMultipart_400NotInternal() throws Exception {
+        String body = mockMvc.perform(get("/test/multipart-broken").with(signedIn(Role.USER)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("MULTIPART_INVALID"))
+                .andReturn().getResponse().getContentAsString();
+        assertThat(body).doesNotContain(INTERNAL_MARKER);
+        assertMarkerNeverLogged();
+    }
+
+    @Test
+    void brokenMultipart_loggedWithClassNamesOnly() throws Exception {
+        // P13 (silent failure 11): a refused upload leaves a trace, without the exception messages.
+        mockMvc.perform(get("/test/multipart-broken-cause").with(signedIn(Role.USER)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("MULTIPART_INVALID"));
+
+        assertThat(handlerEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getLevel()).isEqualTo(ch.qos.logback.classic.Level.INFO);
+            assertThat(event.getFormattedMessage()).contains("MULTIPART_INVALID", "MultipartException", "EOFException");
+        });
+        assertMarkerNeverLogged();
+    }
+
+    @Test
+    void serverSideApiException_loggedWithStatusAndErrorCode() throws Exception {
+        // P13 (silent failure 11): 5xx answers we chose ourselves (SERVER_BUSY, STORAGE_UNAVAILABLE) are logged too.
+        mockMvc.perform(get("/test/server-busy").with(signedIn(Role.USER)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.errorCode").value("SERVER_BUSY"));
+
+        assertThat(handlerEvents()).singleElement().satisfies(event -> {
+            assertThat(event.getLevel()).isEqualTo(ch.qos.logback.classic.Level.WARN);
+            assertThat(event.getFormattedMessage()).contains("status=503", "errorCode=SERVER_BUSY");
+        });
+    }
+
+    @Test
+    void clientSideApiException_notLogged() throws Exception {
+        mockMvc.perform(get("/test/conflict").with(signedIn(Role.USER))).andExpect(status().isConflict());
+
+        assertThat(handlerEvents()).isEmpty();
+    }
+
+    @Test
+    void tooManyRequests_429WithRetryAfterSeconds() throws Exception {
+        mockMvc.perform(get("/test/too-many").with(signedIn(Role.USER)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "62"))
+                .andExpect(jsonPath("$.errorCode").value("UPLOAD_LIMIT"));
     }
 }
