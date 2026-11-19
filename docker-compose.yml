@@ -18,7 +18,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
-    depends_on:
+    depends_on: 
       app:
         condition: service_healthy
       frontend:
@@ -72,6 +72,12 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_APP_PASSWORD: ${SMTP_APP_PASSWORD:-}
+      TEXT_AES_KEY_BASE64: ${TEXT_AES_KEY_BASE64:?TEXT_AES_KEY_BASE64 is not set in .env}
+      INDICATOR_HMAC_PEPPER: ${INDICATOR_HMAC_PEPPER:?INDICATOR_HMAC_PEPPER is not set in .env}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      # D-11: blank = AI off (reports say "AI unavailable"); AI_CHAIN blank = the default Groq chain.
+      GROQ_API_KEYS: ${GROQ_API_KEYS:-}
+      AI_CHAIN: ${AI_CHAIN:-}
       LOG_DIR: /app/logs
     volumes:
       - ./logs:/app/logs

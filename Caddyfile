@@ -3,6 +3,16 @@
 {$SITE_ADDRESS:http://localhost} {
 	@app path /api/* /oauth2/* /login/*
 	handle @app {
+		# Uploads: 5 MB file limit in the app (invariant 6); stop larger bodies at the edge.
+		@upload path /api/submissions
+		request_body @upload {
+			max_size 6MB
+		}
+		# Every other body is a small JSON or form post (P13 N3): at most 1 MB.
+		@notUpload not path /api/submissions
+		request_body @notUpload {
+			max_size 1MB
+		}
 		reverse_proxy app:8080
 	}
 
