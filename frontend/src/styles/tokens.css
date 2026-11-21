@@ -1,65 +1,164 @@
 /*
- * OfferShield design tokens (D-26): a calm "offer letter". A white sheet on a cool desk,
- * blue-black ink, a letter serif for headings and the system sans for everything you read
- * or type. No web fonts and no external requests (D-10).
+ * OfferShield design tokens (D-26).
+ *
+ * A calm, sober inspection tool: cool slate neutrals, one trustworthy blue for actions, and
+ * three risk colours that are always paired with a word and a shape (Low ○, Medium △, High ⬣).
+ * Type is Public Sans (self-hosted from npm, so no external requests; D-10).
+ *
+ * Use the semantic tokens (--color-*, --risk-*) in components. The raw scales exist to define
+ * them and for the rare one-off. Every text pairing listed here passes WCAG AA (4.5:1); input
+ * borders and risk shapes pass 3:1.
  */
 :root {
   color-scheme: light;
 
-  /* Colour: paper and ink */
-  --color-desk: #e9edf1;
-  --color-paper: #ffffff;
-  --color-ink: #1a2238;
-  --color-ink-soft: #4b5470;
-  --color-rule: #cbd3dd;
-  --color-field-border: #767f95;
+  /* Raw scales ----------------------------------------------------------------------------- */
+  --gray-0: #ffffff;
+  --gray-25: #fbfcfd;
+  --gray-50: #f5f7fa;
+  --gray-100: #eef1f5;
+  --gray-200: #e2e7ee;
+  --gray-300: #cdd4df;
+  --gray-400: #7d889b; /* 3.6:1 on white: input borders, icons */
+  --gray-500: #5b6577; /* 5.9:1 on white: muted text */
+  --gray-600: #465063;
+  --gray-700: #343d4f;
+  --gray-800: #212938;
+  --gray-900: #0f1728;
 
-  /* Colour: fountain-pen blue for actions and links */
-  --color-accent: #24489b;
-  --color-accent-strong: #1b3878;
-  --color-accent-wash: #e8eef9;
+  --blue-50: #eef2ff;
+  --blue-100: #dfe6ff;
+  --blue-200: #c2cffc;
+  --blue-300: #96aaf5;
+  --blue-500: #4563e0;
+  --blue-600: #2845c4; /* 7.7:1 with white */
+  --blue-700: #1f37a3;
+  --blue-800: #1b2f82;
 
-  /* Colour: states (text colours pass 4.5:1 on their wash) */
-  --color-ok: #1d6744;
-  --color-ok-wash: #e4f2ea;
-  --color-warn: #6b4700;
-  --color-warn-wash: #fbf1da;
-  --color-danger: #a1262b;
-  --color-danger-wash: #fbecec;
+  --green-50: #e9f6ef;
+  --green-200: #a9dcc0;
+  --green-600: #15834c;
+  --green-700: #0f6a3e;
 
-  /* Risk bands (P12) are shown by word + shape + colour, never colour alone */
-  --risk-low: var(--color-ok);
-  --risk-medium: var(--color-warn);
-  --risk-high: var(--color-danger);
+  --amber-50: #fff5e1;
+  --amber-200: #f4cf86;
+  --amber-600: #b86e00;
+  --amber-700: #8a4a00;
 
-  /* Type */
-  --font-letter:
-    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'URW Palladio L', P052,
-    Georgia, serif;
-  --font-ui:
-    system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-md: 1.125rem;
-  --text-lg: 1.25rem;
-  --text-xl: 1.5625rem;
-  --text-2xl: clamp(1.75rem, 1.45rem + 1.4vw, 2.25rem);
-  --leading-body: 1.6;
+  --red-50: #fdeeec;
+  --red-200: #f5bcb4;
+  --red-600: #c4321f;
+  --red-700: #a3241a;
+  --red-text: #b42318;
+
+  /* Semantic colour ---------------------------------------------------------------------- */
+  --color-bg: var(--gray-50);
+  --color-surface: var(--gray-0);
+  --color-surface-muted: var(--gray-50);
+  --color-surface-sunken: var(--gray-100);
+
+  --color-text: var(--gray-900);
+  --color-text-secondary: var(--gray-700);
+  --color-text-muted: var(--gray-500);
+  --color-text-inverse: var(--gray-0);
+
+  --color-border: var(--gray-200);
+  --color-border-strong: var(--gray-300);
+  --color-border-input: var(--gray-400);
+
+  --color-primary: var(--blue-600);
+  --color-primary-hover: var(--blue-700);
+  --color-primary-strong: var(--blue-700);
+  --color-primary-subtle: var(--blue-50);
+  --color-primary-border: var(--blue-200);
+  --color-on-primary: var(--gray-0);
+  --color-focus: var(--blue-600);
+
+  --color-info: var(--blue-700);
+  --color-info-subtle: var(--blue-50);
+  --color-info-border: var(--blue-200);
+  --color-success: var(--green-700);
+  --color-success-subtle: var(--green-50);
+  --color-success-border: var(--green-200);
+  --color-warn: var(--amber-700);
+  --color-warn-subtle: var(--amber-50);
+  --color-warn-border: var(--amber-200);
+  --color-danger: var(--red-text);
+  --color-danger-solid: var(--red-600);
+  --color-danger-solid-hover: var(--red-700);
+  --color-danger-subtle: var(--red-50);
+  --color-danger-border: var(--red-200);
+
+  /* Risk bands: always word + shape + colour, never colour alone (PRD §7.2) */
+  --risk-low: var(--green-700);
+  --risk-low-shape: var(--green-600);
+  --risk-low-subtle: var(--green-50);
+  --risk-low-border: var(--green-200);
+  --risk-medium: var(--amber-700);
+  --risk-medium-shape: var(--amber-600);
+  --risk-medium-subtle: var(--amber-50);
+  --risk-medium-border: var(--amber-200);
+  --risk-high: var(--red-text);
+  --risk-high-shape: var(--red-600);
+  --risk-high-subtle: var(--red-50);
+  --risk-high-border: var(--red-200);
+
+  /* Type -------------------------------------------------------------------------------- */
+  --font-sans:
+    'Public Sans Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans',
+    'Helvetica Neue', Arial, sans-serif;
+
+  --text-xs: 0.75rem; /* 12 px: only for counts inside badges */
+  --text-sm: 0.875rem; /* 14 px */
+  --text-base: 1rem; /* 16 px */
+  --text-md: 1.125rem; /* 18 px */
+  --text-lg: 1.25rem; /* 20 px */
+  --text-xl: 1.5rem; /* 24 px */
+  --text-2xl: clamp(1.625rem, 1.45rem + 0.8vw, 2rem); /* 26–32 px: page titles */
+  --text-3xl: clamp(1.875rem, 1.5rem + 1.9vw, 2.75rem); /* 30–44 px: sign-in headline */
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
   --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-body: 1.55;
+  --tracking-tight: -0.02em;
   --measure: 65ch;
 
-  /* Space (4 px steps) */
-  --space-1: 0.25rem;
-  --space-2: 0.5rem;
-  --space-3: 0.75rem;
-  --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
+  /* Space (4 px base) --------------------------------------------------------------------- */
+  --space-1: 0.25rem; /* 4 */
+  --space-2: 0.5rem; /* 8 */
+  --space-3: 0.75rem; /* 12 */
+  --space-4: 1rem; /* 16 */
+  --space-5: 1.5rem; /* 24 */
+  --space-6: 2rem; /* 32 */
+  --space-7: 3rem; /* 48 */
+  --space-8: 4rem; /* 64 */
 
-  /* Shape */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --touch: 2.75rem; /* 44 px minimum touch target */
-  --sheet-width: 48rem;
+  /* Shape and depth ---------------------------------------------------------------------- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px; /* buttons, inputs */
+  --radius-lg: 12px; /* cards, menus */
+  --radius-full: 999px; /* badges, avatars */
+
+  --shadow-xs: 0 1px 2px rgb(15 23 40 / 0.06);
+  --shadow-sm: 0 1px 2px rgb(15 23 40 / 0.06), 0 1px 3px rgb(15 23 40 / 0.08);
+  --shadow-md: 0 2px 4px -2px rgb(15 23 40 / 0.06), 0 8px 16px -4px rgb(15 23 40 / 0.1);
+  --shadow-lg: 0 4px 8px -4px rgb(15 23 40 / 0.08), 0 20px 40px -12px rgb(15 23 40 / 0.22);
+
+  /* Layout ------------------------------------------------------------------------------ */
+  --touch: 2.75rem; /* 44 px minimum target */
+  --container-max: 72rem;
+  --content-max: 46rem; /* a single reading column */
+  --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
+  --appbar-height: 4rem;
+
+  /* Motion: short and only where it explains a change ------------------------------------ */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
 }

@@ -1,4 +1,11 @@
-/* Global base and the few shared classes (buttons, fields). Tokens live in styles/tokens.css. */
+/*
+ * Global base and the shared CSS primitives (buttons, fields, cards, tables, lists, key-value
+ * lists). Tokens live in styles/tokens.css; Angular components live in app/shared/ui (see its
+ * README). The font is bundled from npm and served from 'self' (CSP font-src 'self').
+ */
+@import '@fontsource-variable/public-sans/wght.css';
+
+/* Base ------------------------------------------------------------------------------------ */
 
 *,
 *::before,
@@ -9,39 +16,55 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  scrollbar-gutter: stable;
+  scroll-padding-top: calc(var(--appbar-height) + var(--space-4)); /* below the sticky app bar */
 }
 
 body {
   margin: 0;
-  background: var(--color-desk);
-  color: var(--color-ink);
-  font-family: var(--font-ui);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   font-size: var(--text-base);
+  font-weight: var(--weight-regular);
   line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
 }
 
 h1,
 h2,
-h3 {
-  margin: 0 0 var(--space-4);
-  color: var(--color-ink);
-  font-family: var(--font-letter);
-  font-weight: 700;
+h3,
+h4 {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+  font-weight: var(--weight-bold);
   line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   text-wrap: balance;
 }
 
 h1 {
   font-size: var(--text-2xl);
-  letter-spacing: -0.01em;
 }
 
 h2 {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
 }
 
 h3 {
-  font-size: var(--text-lg);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+h4 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0;
 }
 
 p {
@@ -50,27 +73,33 @@ p {
   text-wrap: pretty;
 }
 
+ul,
+ol {
+  margin: 0 0 var(--space-4);
+}
+
 a {
-  color: var(--color-accent);
+  color: var(--color-primary);
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
 }
 
 a:hover {
-  color: var(--color-accent-strong);
-  text-decoration-thickness: 2px;
+  color: var(--color-primary-hover);
+  text-decoration-color: currentColor;
 }
 
-/* A link on its own line (not inside a sentence) gets the full 44 px touch target. */
-.link-action {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--touch);
-  font-weight: 600;
+strong {
+  font-weight: var(--weight-semibold);
+}
+
+svg {
+  flex-shrink: 0;
 }
 
 :focus-visible {
-  outline: 3px solid var(--color-accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 
@@ -78,6 +107,13 @@ a:hover {
 [tabindex='-1']:focus:not(:focus-visible) {
   outline: none;
 }
+
+::selection {
+  background: var(--blue-100);
+  color: var(--color-text);
+}
+
+/* Text helpers ------------------------------------------------------------------------------ */
 
 .visually-hidden {
   position: absolute;
@@ -92,89 +128,268 @@ a:hover {
 }
 
 .lead {
-  color: var(--color-ink-soft);
+  color: var(--color-text-secondary);
   font-size: var(--text-md);
+  line-height: var(--leading-body);
 }
 
 .fine-print {
-  color: var(--color-ink-soft);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
-/* Projected paragraphs inside a notice (shared/ui/notice.ts) */
-.notice p:last-child {
-  margin-bottom: 0;
+.muted {
+  color: var(--color-text-muted);
 }
 
-/* Buttons: one solid style for the main action, one quiet style for the rest. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Keep a short phrase (a date, an amount) on one line. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* A link on its own line (not inside a sentence) gets the full 44 px touch target. */
+.link-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--touch);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.link-action:hover {
+  text-decoration: underline;
+}
+
+/* Layout helpers ------------------------------------------------------------------------------ */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Inside a stack the gap does the spacing. */
+.stack > app-notice {
+  margin: 0;
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+/* Buttons ------------------------------------------------------------------------------------- */
+/* Use the Button component (shared/ui/button.ts) or these classes directly on <button>/<a>. */
+
 .button {
+  --button-bg: var(--color-primary);
+  --button-bg-hover: var(--color-primary-hover);
+  --button-fg: var(--color-on-primary);
+  --button-border: transparent;
+  --button-shadow: var(--shadow-xs);
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--touch);
-  padding: var(--space-2) var(--space-5);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  background: var(--color-accent);
-  color: var(--color-paper);
+  padding: var(--space-2) 1.125rem;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius-md);
+  background: var(--button-bg);
+  box-shadow: var(--button-shadow);
+  color: var(--button-fg);
   font: inherit;
-  font-weight: 600;
-  line-height: 1.2;
+  font-size: 0.9375rem;
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
   text-align: center;
   text-decoration: none;
   cursor: pointer;
   touch-action: manipulation;
+  user-select: none;
 }
 
 .button:hover {
-  border-color: var(--color-accent-strong);
-  background: var(--color-accent-strong);
-  color: var(--color-paper);
+  background: var(--button-bg-hover);
+  color: var(--button-fg);
   text-decoration: none;
 }
 
-.button--quiet {
-  border-color: transparent;
-  background: transparent;
-  color: var(--color-accent);
-}
-
-.button--quiet:hover {
-  border-color: transparent;
-  background: var(--color-accent-wash);
-  color: var(--color-accent-strong);
+.button svg {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 .button--secondary {
-  background: var(--color-paper);
-  color: var(--color-accent);
+  --button-bg: var(--color-surface);
+  --button-bg-hover: var(--color-surface-muted);
+  --button-fg: var(--color-text);
+  --button-border: var(--color-border-strong);
 }
 
-.button--secondary:hover {
-  background: var(--color-accent-wash);
-  color: var(--color-accent-strong);
+.button--ghost {
+  --button-bg: transparent;
+  --button-bg-hover: var(--color-primary-subtle);
+  --button-fg: var(--color-primary);
+  --button-shadow: none;
 }
 
-.button:disabled {
+.button--ghost:hover {
+  --button-fg: var(--color-primary-hover);
+}
+
+.button--danger {
+  --button-bg: var(--color-danger-solid);
+  --button-bg-hover: var(--color-danger-solid-hover);
+}
+
+.button--lg {
+  min-height: 3rem;
+  padding-inline: 1.375rem;
+  font-size: var(--text-base);
+}
+
+/* Compact, for dense desktop tables; touch screens keep the 44 px target. */
+.button--sm {
+  min-height: 2.25rem;
+  padding-inline: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+@media (pointer: coarse) {
+  .button--sm {
+    min-height: var(--touch);
+  }
+}
+
+.button--block {
+  width: 100%;
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  box-shadow: none;
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
-/* Form fields */
+.button[aria-busy='true'] {
+  cursor: progress;
+}
+
+/* Busy buttons stay readable: they are working, not unavailable. */
+.button[aria-busy='true']:disabled {
+  opacity: 0.8;
+}
+
+.button__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+/* Form controls ------------------------------------------------------------------------------- */
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  max-width: 32rem;
+  min-height: var(--touch);
+  padding: 0.5625rem 0.875rem;
+  border: 1px solid var(--color-border-input);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-base); /* 16 px: phones don't zoom in on focus */
+  line-height: var(--leading-snug);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.input:hover,
+.select:hover,
+.textarea:hover {
+  border-color: var(--color-text-muted);
+}
+
+.input:focus-visible,
+.select:focus-visible,
+.textarea:focus-visible {
+  border-color: var(--color-primary);
+  outline-offset: 0;
+}
+
+.input[aria-invalid='true'],
+.select[aria-invalid='true'],
+.textarea[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  background-color: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.select {
+  padding-right: 2.5rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m6 8 4 4 4-4' fill='none' stroke='%235b6577' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 0.75rem center;
+  background-repeat: no-repeat;
+  background-size: 1.25rem;
+  appearance: none;
+}
+
+.textarea {
+  min-height: 7.5rem;
+  resize: vertical;
+}
+
+.input--short {
+  max-width: 16rem;
+}
+
+input[type='radio'],
+input[type='checkbox'] {
+  accent-color: var(--color-primary);
+}
+
+/* Fields: label, optional hint, control, error (Field component: shared/ui/field.ts) */
 .field {
   display: grid;
-  gap: var(--space-1);
+  gap: 0.375rem;
   margin: 0 0 var(--space-5);
 }
 
 .field__label {
-  font-weight: 600;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
 }
 
 .field__hint {
   margin: 0;
-  color: var(--color-ink-soft);
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
@@ -182,30 +397,280 @@ a:hover {
   margin: 0;
   color: var(--color-danger);
   font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
-.input {
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+/* Cards ---------------------------------------------------------------------------------------- */
+
+.card {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-xs);
+}
+
+.card--flush {
+  padding: 0;
+}
+
+.card__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.card__title {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.card__description {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.card__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.card > :last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 30rem) {
+  .card {
+    padding: var(--space-4);
+  }
+}
+
+/* Tables: wrap in .table-wrap so a wide table scrolls inside its box, not the page. Give the
+   wrapper role="region", aria-label and tabindex="0" so keyboard users can scroll it too. */
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.table {
   width: 100%;
-  max-width: 28rem;
-  min-height: var(--touch);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-field-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font: inherit;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
 }
 
-.input[aria-invalid='true'] {
-  border-color: var(--color-danger);
+.table caption {
+  padding: var(--space-3) var(--space-4);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+.table th {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.875rem var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (hover: hover) {
+  .table tbody tr:hover {
+    background: var(--gray-25);
+  }
+}
+
+/* Divided lists (queues, history) */
+.list {
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  list-style: none;
+}
+
+.list > li {
+  padding: var(--space-4);
+}
+
+.list > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* Key-value list: <dl class="kv"><div><dt>…</dt><dd>…</dd></div>…</dl> */
+.kv {
+  display: grid;
+  margin: 0;
+}
+
+.kv > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.kv > div + div {
+  border-top: 1px solid var(--color-border);
+}
+
+.kv dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  line-height: var(--leading-body);
+}
+
+.kv dd {
+  min-width: 0;
+  margin: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 30rem) {
+  .kv > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* A row of app-stat tiles */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-4);
+}
+
+/* Numbered steps for "how it works" side panels: <ol class="steps" role="list"><li><strong/><p/></li> */
+.steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  column-gap: var(--space-3);
+  counter-increment: step;
+}
+
+.steps li::before {
+  display: grid;
+  grid-row: span 2;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  content: counter(step);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.steps strong {
+  font-size: var(--text-sm);
+  line-height: 1.75rem;
+}
+
+.steps p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Plain text from the API or a person (a TPO's note, an AI summary): keep its line breaks. */
+.plain-text {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* Projected content inside shared components ------------------------------------------------- */
+
+.notice p:last-child,
+.page-header__description > :last-child,
+.empty-state__body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Motion ------------------------------------------------------------------------------------- */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .button,
-  .input {
+  .input,
+  .select,
+  .textarea {
     transition:
-      background-color 120ms ease,
-      border-color 120ms ease,
-      color 120ms ease;
+      background-color var(--duration-fast) ease,
+      border-color var(--duration-fast) ease,
+      color var(--duration-fast) ease,
+      transform var(--duration-fast) var(--ease-out);
+  }
+
+  .button:active:not(:disabled, [aria-disabled='true']) {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button__spinner {
+    animation-duration: 1.6s;
   }
 }
