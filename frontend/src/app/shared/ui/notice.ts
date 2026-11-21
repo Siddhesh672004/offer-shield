@@ -1,11 +1,11 @@
 import { Component, input } from '@angular/core';
 
-export type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
+export type NoticeTone = 'info' | 'success' | 'warn' | 'danger';
 
 /**
- * A short message box. The tone is shown by colour and by shape (circle, check, triangle,
- * octagon), never by colour alone. It is not a live region: pages announce changes through
- * the shell's single status region (Announcer).
+ * A short message box with an optional bold heading. The tone is shown by colour and by shape
+ * (circle, check, triangle, octagon), never by colour alone. It is not a live region: pages
+ * announce changes through the shell's single status region (Announcer).
  */
 @Component({
   selector: 'app-notice',
@@ -13,7 +13,7 @@ export type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
   template: `
     <svg class="notice__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       @switch (tone()) {
-        @case ('ok') {
+        @case ('success') {
           <circle cx="12" cy="12" r="9" />
           <path d="m8 12.5 2.8 2.8L16.5 9" />
         }
@@ -31,51 +31,65 @@ export type NoticeTone = 'info' | 'ok' | 'warn' | 'danger';
         }
       }
     </svg>
-    <div class="notice__body"><ng-content /></div>
+    <div class="notice__body">
+      @if (heading(); as heading) {
+        <p class="notice__heading">{{ heading }}</p>
+      }
+      <ng-content />
+    </div>
   `,
   styles: `
     :host {
+      --notice-accent: var(--color-info);
+      --notice-bg: var(--color-info-subtle);
+      --notice-border: var(--color-info-border);
       display: flex;
       gap: var(--space-3);
       align-items: flex-start;
       margin: 0 0 var(--space-5);
       padding: var(--space-3) var(--space-4);
-      border: 1px solid currentColor;
-      border-left-width: 4px;
-      border-radius: var(--radius-sm);
-      background: var(--color-accent-wash);
-      color: var(--color-accent-strong);
+      border: 1px solid var(--notice-border);
+      border-radius: var(--radius-md);
+      background: var(--notice-bg);
+      color: var(--color-text);
     }
-    :host(.notice--ok) {
-      background: var(--color-ok-wash);
-      color: var(--color-ok);
+    :host(.notice--success) {
+      --notice-accent: var(--color-success);
+      --notice-bg: var(--color-success-subtle);
+      --notice-border: var(--color-success-border);
     }
     :host(.notice--warn) {
-      background: var(--color-warn-wash);
-      color: var(--color-warn);
+      --notice-accent: var(--color-warn);
+      --notice-bg: var(--color-warn-subtle);
+      --notice-border: var(--color-warn-border);
     }
     :host(.notice--danger) {
-      background: var(--color-danger-wash);
-      color: var(--color-danger);
+      --notice-accent: var(--color-danger);
+      --notice-bg: var(--color-danger-subtle);
+      --notice-border: var(--color-danger-border);
     }
     .notice__icon {
-      flex: none;
       width: 1.25rem;
       height: 1.25rem;
-      margin-top: 0.15rem;
+      margin-top: 0.125rem;
       fill: none;
-      stroke: currentColor;
+      stroke: var(--notice-accent);
       stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
     .notice__body {
       min-width: 0;
-      color: var(--color-ink);
       overflow-wrap: anywhere;
+    }
+    .notice__heading {
+      margin: 0 0 var(--space-1);
+      color: var(--notice-accent);
+      font-weight: var(--weight-semibold);
     }
   `,
 })
 export class Notice {
   readonly tone = input<NoticeTone>('info');
+  readonly heading = input<string | null>(null);
 }
