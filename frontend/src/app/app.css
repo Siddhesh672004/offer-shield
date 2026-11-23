@@ -1,18 +1,19 @@
 :host {
-  display: block;
+  display: flex;
+  flex-direction: column;
   min-height: 100dvh;
-  padding: var(--space-6) var(--space-4) var(--space-7);
 }
 
 .skip-link {
   position: absolute;
   top: var(--space-2);
   left: var(--space-2);
-  z-index: 10;
+  z-index: 30;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  background: var(--color-paper);
-  font-weight: 600;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  font-weight: var(--weight-semibold);
   transform: translateY(-200%);
 }
 
@@ -20,154 +21,165 @@
   transform: none;
 }
 
-/* One sheet of letter paper, with the next page of the letter peeking out beneath it. */
-.sheet {
-  position: relative;
-  max-width: var(--sheet-width);
+/* App bar: brand, main navigation, account menu. Phones put the navigation on a second row. */
+.appbar {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.appbar__inner {
+  display: grid;
+  grid-template: 'brand nav account' var(--appbar-height) / auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-6);
+  max-width: var(--container-max);
   margin: 0 auto;
-  border: 1px solid var(--color-rule);
-  border-radius: 2px;
-  background: var(--color-paper);
+  padding: 0 var(--gutter);
 }
 
-.sheet::before {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border: 1px solid var(--color-rule);
-  border-radius: 2px;
-  background: var(--color-paper);
-  content: '';
-  transform: translate(6px, 6px);
-}
-
-/* Letterhead: name on the left, the reader's links on the right, a printed double rule below. */
-.letterhead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-4);
-  padding: var(--space-5) var(--space-6) var(--space-3);
-  border-bottom: 3px double var(--color-ink);
-}
-
-.wordmark {
+.brand {
   display: inline-flex;
+  grid-area: brand;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0.625rem;
   min-height: var(--touch);
-  margin-right: auto;
-  color: var(--color-ink);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
   text-decoration: none;
 }
 
-.wordmark:hover {
-  color: var(--color-ink);
+.brand:hover {
+  color: var(--color-text);
 }
 
-.wordmark__mark {
-  width: 2rem;
-  height: 2rem;
-  fill: var(--color-accent-wash);
-  stroke: var(--color-accent);
-  stroke-width: 1.75;
+.brand__mark {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.brand__shield {
+  fill: var(--color-primary);
+}
+
+.brand__lines {
+  fill: none;
+  stroke: var(--color-on-primary);
+  stroke-width: 2;
   stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
-.wordmark__name {
-  font-family: var(--font-letter);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: 0.01em;
+.brand__name {
+  font-size: 1.125rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
 
-.letterhead__nav {
+.appnav {
   display: flex;
-  flex-wrap: wrap;
+  grid-area: nav;
   gap: var(--space-1);
 }
 
-.letterhead__nav a {
+.appnav__link {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: var(--touch);
   padding: 0 var(--space-3);
   border-radius: var(--radius-sm);
-  color: var(--color-ink-soft);
-  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.9375rem;
+  font-weight: var(--weight-medium);
   text-decoration: none;
-}
-
-.letterhead__nav a:hover {
-  background: var(--color-accent-wash);
-  color: var(--color-accent-strong);
-}
-
-.letterhead__nav a.is-current {
-  color: var(--color-ink);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.4em;
-}
-
-.letterhead__account {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.letterhead__name {
-  max-width: 14rem;
-  overflow: hidden;
-  color: var(--color-ink-soft);
-  font-size: var(--text-sm);
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.letterhead__account .button {
-  padding-inline: var(--space-3);
+.appnav__link:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
 }
 
-.sheet__body {
-  padding: var(--space-6) var(--space-6) var(--space-7);
+.appnav__link.is-current {
+  color: var(--color-text);
 }
 
-.sheet__footer {
-  padding: var(--space-4) var(--space-6) var(--space-5);
-  border-top: 1px solid var(--color-rule);
+/* The current page's underline sits on the app bar's bottom edge. */
+.appnav__link.is-current::after {
+  position: absolute;
+  right: var(--space-3);
+  bottom: calc((var(--touch) - var(--appbar-height)) / 2 - 1px);
+  left: var(--space-3);
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-primary);
+  content: '';
 }
 
-.sheet__footer p {
+.account {
+  grid-area: account;
+  justify-self: end;
+}
+
+/* Page area and footer share the app bar's column. */
+.page {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: var(--space-7) var(--gutter) var(--space-8);
+}
+
+/* The skip link focuses <main> itself; like GOV.UK, no ring around the whole page area.
+   Every interactive element keeps its focus ring. */
+.page:focus-visible {
+  outline: none;
+}
+
+.appfooter {
+  padding: var(--space-5)
+    max(var(--gutter), calc((100% - var(--container-max)) / 2 + var(--gutter)));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.appfooter p {
   margin: 0;
 }
 
-@media (max-width: 40rem) {
-  :host {
-    padding: 0;
+@media (min-width: 40rem) {
+  .appbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .appbar__inner {
+    grid-template:
+      'brand account' 3.5rem
+      'nav nav' auto / minmax(0, 1fr) auto;
   }
 
-  .sheet {
-    min-height: 100dvh;
-    border-inline: 0;
-    border-radius: 0;
+  /* Tighter links so an admin's four fit at 360 px; narrower screens wrap, never hide them. */
+  .appnav {
+    flex-wrap: wrap;
+    gap: 0;
+    margin: 0 -0.375rem;
   }
 
-  .sheet::before {
-    display: none;
+  .appnav__link {
+    padding: 0 0.375rem;
+    font-size: var(--text-sm);
   }
 
-  .letterhead {
-    padding: var(--space-3) var(--space-4);
+  .appnav__link.is-current::after {
+    right: 0.375rem;
+    bottom: 0;
+    left: 0.375rem;
   }
 
-  .sheet__body {
-    padding: var(--space-5) var(--space-4) var(--space-6);
-  }
-
-  .sheet__footer {
-    padding: var(--space-4);
+  .page {
+    padding-top: var(--space-6);
   }
 }

@@ -11,6 +11,28 @@ export interface ProblemDetail {
   readonly requestId?: string;
 }
 
+/** One failed constraint of a 400 `VALIDATION_FAILED`: the field name and why (never the value). */
+export interface Violation {
+  readonly field: string;
+  readonly message: string;
+}
+
+/** The `violations` of a 400 `VALIDATION_FAILED` problem; empty for any other error. */
+export function problemViolations(error: unknown): Violation[] {
+  const violations: unknown = (readProblem(error) as { violations?: unknown } | undefined)
+    ?.violations;
+  if (!Array.isArray(violations)) {
+    return [];
+  }
+  return violations.filter(
+    (item): item is Violation =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as Violation).field === 'string' &&
+      typeof (item as Violation).message === 'string',
+  );
+}
+
 /** The problem body of a failed API call, or `undefined` when the error carries no JSON body. */
 export function readProblem(error: unknown): ProblemDetail | undefined {
   if (!(error instanceof HttpErrorResponse)) {
@@ -32,6 +54,21 @@ export function isSessionEnded(error: unknown): boolean {
 export function problemCode(error: unknown): string | undefined {
   const code = readProblem(error)?.errorCode;
   return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * The `Retry-After` header of a 429 in whole seconds (the API sends seconds), or `null` when it
+ * is missing or not a number.
+ */
+export function retryAfterSeconds(error: unknown): number | null {
+  if (!(error instanceof HttpErrorResponse)) {
+    return null;
+  }
+  const value = error.headers?.get('Retry-After')?.trim();
+  if (!value || !/^\d+$/.test(value)) {
+    return null;
+  }
+  return Number(value);
 }
 
 /** The server's `detail` (written to be shown to the user), or the given fallback. */

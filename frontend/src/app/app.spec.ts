@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { fakeStudent, fakeTpo } from '../testing/fakes';
+import { fakeAdmin, fakeStudent, fakeTpo } from '../testing/fakes';
 import { ProbeAnswer } from '../testing/session-helpers';
 import { App } from './app';
 import { Announcer } from './core/a11y/announcer';
@@ -74,22 +74,41 @@ describe('App shell', () => {
     expect(signOutButton(fixture)).toBeUndefined();
   });
 
-  it('tpo_seesTpoDeskLink', async () => {
+  function navLinks(fixture: ComponentFixture<App>): { text: string; href: string | null }[] {
+    const links = Array.from(
+      fixture.nativeElement.querySelectorAll('nav a'),
+    ) as HTMLAnchorElement[];
+    return links.map((link) => ({
+      text: link.textContent?.trim() ?? '',
+      href: link.getAttribute('href'),
+    }));
+  }
+
+  it('nav_tpo_seesMembersAndReviewsOnly', async () => {
     const fixture = await createShell(fakeTpo);
 
-    const links = Array.from(
-      fixture.nativeElement.querySelectorAll('nav a'),
-    ) as HTMLAnchorElement[];
-    expect(links.map((link) => link.textContent?.trim())).toContain('TPO desk');
+    expect(navLinks(fixture)).toEqual([
+      { text: 'My offers', href: '/app' },
+      { text: 'Members', href: '/tpo/members' },
+      { text: 'Reviews', href: '/tpo/reviews' },
+    ]);
   });
 
-  it('student_doesNotSeeTpoDeskLink', async () => {
+  it('nav_admin_seesCollegesScamReportsCompaniesOnly', async () => {
+    const fixture = await createShell(fakeAdmin);
+
+    expect(navLinks(fixture)).toEqual([
+      { text: 'My offers', href: '/app' },
+      { text: 'Colleges', href: '/admin/colleges' },
+      { text: 'Scam reports', href: '/admin/scam-reports' },
+      { text: 'Companies', href: '/admin/companies' },
+    ]);
+  });
+
+  it('nav_student_seesNoStaffLinks', async () => {
     const fixture = await createShell(fakeStudent);
 
-    const links = Array.from(
-      fixture.nativeElement.querySelectorAll('nav a'),
-    ) as HTMLAnchorElement[];
-    expect(links.map((link) => link.textContent?.trim())).not.toContain('TPO desk');
+    expect(navLinks(fixture)).toEqual([{ text: 'My offers', href: '/app' }]);
   });
 
   it('signOut_postsLogoutThenOpensLogin', async () => {

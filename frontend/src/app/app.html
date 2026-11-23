@@ -1,60 +1,56 @@
 <a class="skip-link" href="#main" (click)="skipToMain($event)">Skip to main content</a>
 
-<div class="sheet">
-  <header class="letterhead">
-    <a class="wordmark" [routerLink]="session.signedIn() ? '/app' : '/login'">
-      <svg class="wordmark__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+<header class="appbar">
+  <div class="appbar__inner">
+    <a class="brand" [routerLink]="session.signedIn() ? '/app' : '/login'">
+      <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
         <path
-          d="M16 3.5 5.5 7.5v7.8c0 6.6 4.4 11 10.5 13.2 6.1-2.2 10.5-6.6 10.5-13.2V7.5L16 3.5Z"
+          class="brand__shield"
+          d="M16 2.75 4.75 7v8.25c0 7.1 4.7 11.9 11.25 14.25 6.55-2.35 11.25-7.15 11.25-14.25V7L16 2.75Z"
         />
-        <path d="M11.5 12.5h9M11.5 16.5h9M11.5 20.5h5.5" />
+        <path class="brand__lines" d="M11 12.25h10M11 16.25h10M11 20.25h5.5" />
       </svg>
-      <span class="wordmark__name" translate="no">OfferShield</span>
+      <span class="brand__name" translate="no">OfferShield</span>
     </a>
 
     @if (session.me(); as me) {
-      <nav class="letterhead__nav" aria-label="Main">
-        <a routerLink="/app" routerLinkActive="is-current" ariaCurrentWhenActive="page"
+      <nav class="appnav" aria-label="Main">
+        <a
+          class="appnav__link"
+          routerLink="/app"
+          routerLinkActive="is-current"
+          ariaCurrentWhenActive="page"
           >My offers</a
         >
-        @if (me.role === 'TPO') {
-          <a routerLink="/tpo" routerLinkActive="is-current" ariaCurrentWhenActive="page"
-            >TPO desk</a
-          >
-        }
-        @if (me.role === 'ADMIN') {
-          <a routerLink="/admin" routerLinkActive="is-current" ariaCurrentWhenActive="page"
-            >Admin</a
+        <!-- Staff links only for their role; the server still checks every call. -->
+        @for (link of staffLinks[me.role]; track link.path) {
+          <a
+            class="appnav__link"
+            routerLinkActive="is-current"
+            ariaCurrentWhenActive="page"
+            [routerLink]="link.path"
+            >{{ link.label }}</a
           >
         }
       </nav>
-      <div class="letterhead__account">
-        <span class="letterhead__name" translate="no">{{ me.name }}</span>
-        <button
-          type="button"
-          class="button button--quiet"
-          [disabled]="signingOut()"
-          (click)="signOut()"
-        >
-          {{ signingOut() ? 'Signing out…' : 'Sign out' }}
-        </button>
-      </div>
-    }
-  </header>
 
-  <main id="main" class="sheet__body" tabindex="-1">
-    @if (signOutFailed()) {
-      <app-notice tone="danger"><p>Couldn't sign out. Try again.</p></app-notice>
+      <app-account-menu class="account" [me]="me" [busy]="signingOut()" (signOut)="signOut()" />
     }
-    <router-outlet />
-  </main>
+  </div>
+</header>
 
-  <footer class="sheet__footer">
-    <p class="fine-print">
-      OfferShield estimates risk from fixed rules, public records and reports from other users.
-      Before you pay anything or share documents, contact the company through its official website.
-    </p>
-  </footer>
-</div>
+<main id="main" class="page" tabindex="-1">
+  @if (signOutFailed()) {
+    <app-notice tone="danger"><p>Couldn't sign out. Try again.</p></app-notice>
+  }
+  <router-outlet />
+</main>
+
+<footer class="appfooter">
+  <p class="fine-print">
+    OfferShield estimates risk from fixed rules, public records and reports from other users. Before
+    you pay anything or share documents, contact the company through its official website.
+  </p>
+</footer>
 
 <p class="visually-hidden" role="status">{{ announcer.message() }}</p>

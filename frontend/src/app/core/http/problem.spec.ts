@@ -1,5 +1,12 @@
-import { HttpErrorResponse } from '@angular/common/http';
-import { isSessionEnded, problemCode, problemDetail, readProblem } from './problem';
+import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
+import {
+  isSessionEnded,
+  problemCode,
+  problemDetail,
+  problemViolations,
+  readProblem,
+  retryAfterSeconds,
+} from './problem';
 
 function httpError(status: number, body: unknown): HttpErrorResponse {
   return new HttpErrorResponse({ status, error: body, url: '/api/memberships' });
@@ -52,5 +59,39 @@ describe('problem', () => {
 
   it('isSessionEnded_notAnHttpError_false', () => {
     expect(isSessionEnded(new Error('boom'))).toBe(false);
+  });
+
+  it('problemViolations_validationFailed_returnsFieldsAndMessages', () => {
+    const error = httpError(400, {
+      errorCode: 'VALIDATION_FAILED',
+      violations: [
+        { field: 'upiId', message: 'must be a UPI ID like name@bank' },
+        { field: 42, message: 'ignored' },
+      ],
+    });
+
+    expect(problemViolations(error)).toEqual([
+      { field: 'upiId', message: 'must be a UPI ID like name@bank' },
+    ]);
+    expect(problemViolations(httpError(409, conflictBody))).toEqual([]);
+  });
+
+  it('retryAfterSeconds_secondsHeader_returnsSeconds', () => {
+    const error = new HttpErrorResponse({
+      status: 429,
+      headers: new HttpHeaders({ 'Retry-After': '420' }),
+    });
+
+    expect(retryAfterSeconds(error)).toBe(420);
+  });
+
+  it('retryAfterSeconds_missingOrInvalid_null', () => {
+    expect(retryAfterSeconds(new HttpErrorResponse({ status: 429 }))).toBeNull();
+    const bad = new HttpErrorResponse({
+      status: 429,
+      headers: new HttpHeaders({ 'Retry-After': 'soon' }),
+    });
+    expect(retryAfterSeconds(bad)).toBeNull();
+    expect(retryAfterSeconds(new Error('boom'))).toBeNull();
   });
 });

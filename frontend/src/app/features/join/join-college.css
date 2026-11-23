@@ -1,75 +1,49 @@
-.request {
-  margin-bottom: var(--space-6);
+.join-layout {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
 }
 
-.request-status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-weight: 600;
+@media (min-width: 60rem) {
+  .join-layout {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    gap: var(--space-7);
+  }
 }
 
-.request-status--PENDING {
-  background: var(--color-warn-wash);
-  color: var(--color-warn);
+.join-main {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
 }
 
-.request-status--APPROVED {
-  background: var(--color-ok-wash);
-  color: var(--color-ok);
+.join-main app-notice {
+  margin: 0;
 }
 
-.request-status--REJECTED {
-  background: var(--color-danger-wash);
-  color: var(--color-danger);
-}
-
-.request-status__shape {
-  width: 1.125rem;
-  height: 1.125rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.join-main app-spinner {
+  margin-bottom: var(--space-3);
 }
 
 .request__details {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0 0 var(--space-5);
+  margin-bottom: var(--space-4);
+  border-block: 1px solid var(--color-border);
 }
 
-.request__details div {
-  display: grid;
-  grid-template-columns: minmax(7rem, 10rem) 1fr;
-  gap: var(--space-3);
-  padding-bottom: var(--space-2);
-  border-bottom: 1px dotted var(--color-rule);
-}
-
-.request__details dt {
-  color: var(--color-ink-soft);
-}
-
-.request__details dd {
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
+.request__next p {
+  margin-bottom: var(--space-2);
 }
 
 .request__reason-label {
-  margin-bottom: var(--space-2);
+  font-weight: var(--weight-semibold);
 }
 
 .request__reason {
   margin: 0 0 var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  border-left: 3px solid var(--color-rule);
-  font-family: var(--font-letter);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--color-surface-muted);
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
@@ -82,29 +56,27 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-top: var(--space-1);
+  margin-top: 0.375rem;
 }
 
 .search__row .input {
-  flex: 1 1 10rem;
+  flex: 1 1 12rem;
   min-width: 0;
-}
-
-.new-request {
-  padding-top: var(--space-5);
-  border-top: 1px solid var(--color-rule);
+  max-width: none;
 }
 
 .colleges {
-  min-width: 0;
-  margin: 0 0 var(--space-5);
-  padding: 0;
-  border: 0;
+  margin-bottom: var(--space-5);
 }
 
 .colleges legend {
-  margin-bottom: var(--space-2);
-  padding: 0;
+  margin-bottom: 0.375rem;
+}
+
+.college-list {
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
 }
 
 .college-option {
@@ -112,35 +84,28 @@
   align-items: flex-start;
   gap: var(--space-3);
   min-height: var(--touch);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-rule);
-  border-bottom-width: 0;
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
 
-.college-option:first-of-type {
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-}
-
-.college-option:last-of-type {
-  border-bottom-width: 1px;
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+.college-option + .college-option {
+  border-top: 1px solid var(--color-border);
 }
 
 .college-option:hover {
-  background: var(--color-desk);
+  background: var(--color-surface-muted);
 }
 
 .college-option:has(input:checked) {
-  background: var(--color-accent-wash);
+  background: var(--color-primary-subtle);
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 .college-option input {
   flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.15rem 0 0;
-  accent-color: var(--color-accent);
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0.1875rem 0 0;
 }
 
 .college-option__text {
@@ -149,25 +114,102 @@
 }
 
 .college-option__name {
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   overflow-wrap: anywhere;
 }
 
-.college-option__city {
-  color: var(--color-ink-soft);
+.college-option__city,
+.colleges__note {
+  color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
 
 .colleges__empty {
-  color: var(--color-ink-soft);
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
 }
 
 .colleges__note {
   margin: var(--space-2) 0 0;
-  color: var(--color-ink-soft);
-  font-size: var(--text-sm);
 }
 
-.input--short {
-  max-width: 16rem;
+.colleges .field__error {
+  margin-top: var(--space-2);
+}
+
+.join-fields {
+  display: grid;
+  column-gap: var(--space-4);
+}
+
+.join-fields .input {
+  max-width: none;
+}
+
+@media (min-width: 40rem) {
+  .join-fields {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}
+
+.join .card__footer {
+  margin-top: 0;
+}
+
+/* How joining works: a real sequence, so the steps are numbered. */
+.join-aside {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+}
+
+.join-aside h2 {
+  margin-bottom: var(--space-4);
+  font-size: var(--text-base);
+}
+
+.steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  column-gap: var(--space-3);
+  counter-increment: step;
+}
+
+.steps li::before {
+  display: grid;
+  grid-row: span 2;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  content: counter(step);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.steps strong {
+  font-size: var(--text-sm);
+  line-height: 1.75rem;
+}
+
+.steps p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
 }

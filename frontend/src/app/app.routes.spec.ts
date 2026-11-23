@@ -30,21 +30,87 @@ describe('app routes', () => {
   async function open(answer: ProbeAnswer, url: string): Promise<{ url: string; heading: string }> {
     await answerSessionProbe(answer);
     const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl(url);
+    const http = TestBed.inject(HttpTestingController);
+    let done = false;
+    const navigation = harness.navigateByUrl(url).finally(() => (done = true));
+    // Pages load data: answer every list with none and an unknown item with 404, during the
+    // navigation and once more after it.
+    const lists = [
+      '/api/submissions',
+      '/api/memberships/pending',
+      '/api/reviews/queue',
+      '/api/admin/colleges',
+      '/api/admin/scam-reports',
+      '/api/known-companies',
+    ];
+    const items = ['/api/submissions/', '/api/reviews/'];
+    for (let after = 0; !done || after < 3; after += done ? 1 : 0) {
+      http.match((request) => lists.includes(request.url)).forEach((request) => request.flush([]));
+      http
+        .match((request) => items.some((prefix) => request.url.startsWith(prefix)))
+        .forEach((request) =>
+          request.flush({ status: 404 }, { status: 404, statusText: 'Not Found' }),
+        );
+      await new Promise((resolve) => setTimeout(resolve));
+    }
+    await navigation;
+    await harness.fixture.whenStable();
     const heading = harness.routeNativeElement?.querySelector('h1')?.textContent?.trim() ?? '';
     return { url: router.url, heading };
   }
 
-  it('tpoArea_tpo_opensTpoDesk', async () => {
-    expect(await open(fakeTpo, '/tpo')).toEqual({ url: '/tpo', heading: 'TPO desk' });
+  it('tpoArea_tpo_opensPendingMembers', async () => {
+    expect(await open(fakeTpo, '/tpo')).toEqual({
+      url: '/tpo/members',
+      heading: 'Pending members',
+    });
+  });
+
+  it('tpoReviews_tpo_opensQueue', async () => {
+    expect(await open(fakeTpo, '/tpo/reviews')).toEqual({
+      url: '/tpo/reviews',
+      heading: 'Review queue',
+    });
+  });
+
+  it('tpoCase_idFromRoute_opensReviewAnOffer', async () => {
+    expect(await open(fakeTpo, '/tpo/reviews/c1')).toEqual({
+      url: '/tpo/reviews/c1',
+      heading: 'Review an offer',
+    });
+  });
+
+  it('tpoReviews_admin_showsNotFound', async () => {
+    expect((await open(fakeAdmin, '/tpo/reviews')).heading).toBe('Page not found');
   });
 
   it('tpoArea_student_showsNotFound', async () => {
     expect((await open(fakeStudent, '/tpo')).heading).toBe('Page not found');
   });
 
-  it('adminArea_admin_opensAdmin', async () => {
-    expect(await open(fakeAdmin, '/admin')).toEqual({ url: '/admin', heading: 'Admin' });
+  it('adminArea_admin_opensColleges', async () => {
+    expect(await open(fakeAdmin, '/admin')).toEqual({
+      url: '/admin/colleges',
+      heading: 'Colleges and TPOs',
+    });
+  });
+
+  it('adminScamReports_statusFromQuery_opens', async () => {
+    expect(await open(fakeAdmin, '/admin/scam-reports?status=CONFIRMED')).toEqual({
+      url: '/admin/scam-reports?status=CONFIRMED',
+      heading: 'Scam reports',
+    });
+  });
+
+  it('adminCompanies_admin_opensKnownCompanies', async () => {
+    expect(await open(fakeAdmin, '/admin/companies')).toEqual({
+      url: '/admin/companies',
+      heading: 'Known companies',
+    });
+  });
+
+  it('adminCompanies_tpo_showsNotFound', async () => {
+    expect((await open(fakeTpo, '/admin/companies')).heading).toBe('Page not found');
   });
 
   it('adminArea_tpo_showsNotFound', async () => {
@@ -55,6 +121,34 @@ describe('app routes', () => {
     const approved = { ...fakeStudent, membershipStatus: 'APPROVED' as const };
 
     expect(await open(approved, '/app')).toEqual({ url: '/app', heading: 'Your offers' });
+  });
+
+  it('upload_student_opensCheckAnOfferLetter', async () => {
+    const approved = { ...fakeStudent, membershipStatus: 'APPROVED' as const };
+
+    expect(await open(approved, '/app/upload')).toEqual({
+      url: '/app/upload',
+      heading: 'Check an offer letter',
+    });
+  });
+
+  it('upload_tpo_showsNotFound', async () => {
+    expect((await open(fakeTpo, '/app/upload')).heading).toBe('Page not found');
+  });
+
+  it('reportScam_admin_showsNotFound', async () => {
+    expect((await open(fakeAdmin, '/app/submissions/sub-1/report-scam')).heading).toBe(
+      'Page not found',
+    );
+  });
+
+  it('report_idFromRoute_opensRiskReport', async () => {
+    const approved = { ...fakeStudent, membershipStatus: 'APPROVED' as const };
+
+    expect(await open(approved, '/app/submissions/sub-1')).toEqual({
+      url: '/app/submissions/sub-1',
+      heading: 'Risk report',
+    });
   });
 
   it('root_signedIn_redirectsToStudentArea', async () => {
