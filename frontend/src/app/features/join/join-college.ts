@@ -23,13 +23,30 @@ import { firstValueFrom } from 'rxjs';
 import { Announcer } from '../../core/a11y/announcer';
 import { Session } from '../../core/auth/session';
 import { isSessionEnded, problemCode, problemDetail } from '../../core/http/problem';
+import { Badge, BadgeIcon, BadgeTone } from '../../shared/ui/badge';
+import { Button } from '../../shared/ui/button';
+import { Field } from '../../shared/ui/field';
+import { Skeleton, Spinner } from '../../shared/ui/loading';
 import { Notice } from '../../shared/ui/notice';
+import { PageHeader } from '../../shared/ui/page-header';
 import { CollegeOption, Membership, MembershipApi } from './membership-api';
 
 const STATUS_LABELS: Record<Membership['status'], string> = {
   PENDING: 'Pending',
   APPROVED: 'Approved',
   REJECTED: 'Not approved',
+};
+
+const STATUS_TONES: Record<Membership['status'], BadgeTone> = {
+  PENDING: 'warn',
+  APPROVED: 'success',
+  REJECTED: 'danger',
+};
+
+const STATUS_ICONS: Record<Membership['status'], BadgeIcon> = {
+  PENDING: 'clock',
+  APPROVED: 'check',
+  REJECTED: 'cross',
 };
 
 /** `GET /api/colleges` returns at most this many (P3 contract). */
@@ -57,7 +74,18 @@ function firstError(state: FieldState<string>): string | null {
  */
 @Component({
   selector: 'app-join-college',
-  imports: [FormField, FormRoot, Notice, RouterLink],
+  imports: [
+    Badge,
+    Button,
+    Field,
+    FormField,
+    FormRoot,
+    Notice,
+    PageHeader,
+    RouterLink,
+    Skeleton,
+    Spinner,
+  ],
   templateUrl: './join-college.html',
   styleUrl: './join-college.css',
 })
@@ -69,6 +97,8 @@ export class JoinCollege {
   private readonly injector = inject(Injector);
 
   protected readonly statusLabels = STATUS_LABELS;
+  protected readonly statusTones = STATUS_TONES;
+  protected readonly statusIcons = STATUS_ICONS;
   protected readonly collegeLimit = COLLEGE_LIMIT;
   protected readonly membershipCheckFailedMessage = MEMBERSHIP_CHECK_FAILED;
   protected readonly collegesFailedMessage = COLLEGES_FAILED;
