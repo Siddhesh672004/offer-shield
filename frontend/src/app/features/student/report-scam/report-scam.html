@@ -1,0 +1,199 @@
+<app-page-header heading="Report a scam">
+  <p>
+    Warn other students about this letter. An admin reviews every report before it counts as
+    confirmed.
+  </p>
+</app-page-header>
+
+<div class="scam-layout">
+  <div class="scam-main">
+    @if (loading() && !existing()) {
+      <div class="card">
+        <app-spinner label="Loading the letter…" />
+        <app-skeleton [lines]="3" />
+      </div>
+    } @else if (letterMissing()) {
+      <app-notice tone="warn" heading="We couldn't find this letter">
+        <p>
+          The link may be wrong, or the letter belongs to another account. Your letters are in
+          <a routerLink="/app">My submissions</a>.
+        </p>
+      </app-notice>
+    } @else if (letter.error()) {
+      <app-notice tone="danger" heading="Couldn't load this letter">
+        <p>Check your connection and try again.</p>
+        <button appButton type="button" variant="secondary" size="sm" (click)="letter.reload()">
+          Try again
+        </button>
+      </app-notice>
+    } @else if (existing(); as report) {
+      @if (alreadyReported()) {
+        <app-notice tone="info">
+          <p>You already reported this letter. Each letter can be reported once.</p>
+        </app-notice>
+      }
+      <section class="card" aria-labelledby="scam-status-heading">
+        <div class="card__header">
+          <h2 id="scam-status-heading" class="card__title" tabindex="-1">Your scam report</h2>
+          <app-badge [tone]="statuses[report.status].tone" [icon]="statuses[report.status].icon">{{
+            statuses[report.status].label
+          }}</app-badge>
+        </div>
+        <p class="muted">{{ statuses[report.status].text }}</p>
+        @if (noMarkers()) {
+          <app-notice tone="info" class="scam-no-markers"
+            ><p>{{ noMarkersText }}</p></app-notice
+          >
+        }
+        <dl class="kv">
+          <div>
+            <dt>Sent</dt>
+            <dd>{{ report.createdAt | appDateTime }}</dd>
+          </div>
+          <div>
+            <dt>Amount asked</dt>
+            <dd>
+              {{ report.amountAsked === null ? 'None given' : (report.amountAsked | appRupees) }}
+            </dd>
+          </div>
+          @if (report.decidedAt) {
+            <div>
+              <dt>Decided</dt>
+              <dd>{{ report.decidedAt | appDate }}</dd>
+            </div>
+          }
+        </dl>
+        <a class="link-action" [routerLink]="['/app/submissions', id()]">Back to the report</a>
+      </section>
+    } @else if (mineFailed()) {
+      <app-notice
+        tone="warn"
+        heading="Couldn't check your earlier scam reports"
+        class="scam-mine-error"
+      >
+        <p>
+          We need them to know whether you already reported this letter. Check your connection and
+          try again.
+        </p>
+        <button appButton type="button" variant="secondary" size="sm" (click)="mine.reload()">
+          Try again
+        </button>
+      </app-notice>
+    } @else if (!analysed()) {
+      <app-notice tone="info" heading="This letter can't be reported yet">
+        <p>
+          You can report a letter once its check has finished. Letters deleted after 30 days can't
+          be reported.
+        </p>
+        <a class="link-action" [routerLink]="['/app/submissions', id()]">Back to the report</a>
+      </app-notice>
+    } @else {
+      <form class="card" aria-labelledby="scam-form-heading" novalidate [formRoot]="scamForm">
+        <div class="card__header">
+          <div>
+            <h2 id="scam-form-heading" class="card__title">What happened?</h2>
+            @if (letter.value(); as row) {
+              <p class="card__description">
+                About the letter you sent on {{ row.createdAt | appDateTime }}.
+                <a [routerLink]="['/app/submissions', id()]">See its report</a>
+              </p>
+            }
+          </div>
+        </div>
+
+        <app-field
+          label="What happened"
+          fieldId="scam-description"
+          [hint]="
+            descriptionLength() +
+            ' of ' +
+            maxDescriptionLabel +
+            ' characters. Only the admin reads this.'
+          "
+          [error]="descriptionError()"
+        >
+          <textarea
+            id="scam-description"
+            autocomplete="off"
+            class="textarea scam-description"
+            rows="6"
+            placeholder="For example: they asked for a fee for a laptop kit before joining…"
+            [formField]="scamForm.description"
+            [attr.aria-invalid]="descriptionError() ? 'true' : null"
+            [attr.aria-describedby]="describedBy('scam-description', true, descriptionError())"
+          ></textarea>
+        </app-field>
+
+        <app-field
+          label="Amount they asked for (optional)"
+          fieldId="scam-amount"
+          hint="In rupees. Leave it empty if they didn't ask for money."
+          [error]="amountError()"
+        >
+          <div class="amount">
+            <span class="amount__prefix" aria-hidden="true">₹</span>
+            <input
+              id="scam-amount"
+              class="input amount__input"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="e.g. 3,000…"
+              [formField]="scamForm.amount"
+              [attr.aria-invalid]="amountError() ? 'true' : null"
+              [attr.aria-describedby]="describedBy('scam-amount', true, amountError())"
+            />
+          </div>
+        </app-field>
+
+        <p class="fine-print">Don't include passwords, OTPs or bank PINs.</p>
+
+        @if (sendError(); as message) {
+          <app-notice [tone]="notReady() ? 'warn' : 'danger'" class="scam-error">
+            <p>{{ message }}</p>
+            @if (notReady()) {
+              <button appButton type="submit" variant="secondary" size="sm" [disabled]="sending()">
+                Try again
+              </button>
+            }
+          </app-notice>
+        }
+
+        <div class="card__footer">
+          <button
+            appButton
+            type="submit"
+            variant="danger"
+            [loading]="sending()"
+            [disabled]="sending()"
+          >
+            {{ sending() ? 'Sending…' : 'Send scam report' }}
+          </button>
+          <a class="link-action" [routerLink]="['/app/submissions', id()]">Cancel</a>
+        </div>
+      </form>
+    }
+  </div>
+
+  <aside class="scam-aside" aria-labelledby="scam-how-heading">
+    <h2 id="scam-how-heading">What happens next</h2>
+    <ol class="steps" role="list">
+      <li>
+        <strong>Others are warned</strong>
+        <p>
+          Letters that share this one's details show “Reported as a scam by N users (not verified)”.
+        </p>
+      </li>
+      <li>
+        <strong>An admin reviews it</strong>
+        <p>They read your description and the report's evidence.</p>
+      </li>
+      <li>
+        <strong>You hear back</strong>
+        <p>
+          If they confirm it, matching letters show “Confirmed scam” for everyone. You'll get an
+          email either way.
+        </p>
+      </li>
+    </ol>
+  </aside>
+</div>

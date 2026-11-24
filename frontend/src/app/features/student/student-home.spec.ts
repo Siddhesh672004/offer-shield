@@ -24,7 +24,13 @@ describe('StudentHome', () => {
   async function render(me: Me): Promise<HTMLElement> {
     await answerSessionProbe(me);
     const fixture = TestBed.createComponent(StudentHome);
+    // My submissions loads the user's letters; answer with none (fake data only).
+    const list = await vi.waitFor(() =>
+      TestBed.inject(HttpTestingController).expectOne('/api/submissions'),
+    );
+    list.flush([]);
     await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve));
     return fixture.nativeElement as HTMLElement;
   }
 
@@ -56,6 +62,22 @@ describe('StudentHome', () => {
       "Your request to join Fake Institute of Technology wasn't approved.",
     );
     expect(page.querySelector('a[href="/join"]')).not.toBeNull();
+  });
+
+  it('student_offersUpload_andListsSubmissions', async () => {
+    const page = await render(fakeStudent);
+
+    expect(page.querySelector('a[href="/app/upload"]')?.textContent?.trim()).toBe(
+      'Check an offer letter',
+    );
+    expect(page.querySelector('#submissions-heading')?.textContent).toBe('My submissions');
+  });
+
+  it('tpo_noUpload_explainsWhy', async () => {
+    const page = await render(fakeTpo);
+
+    expect(page.querySelector('a[href="/app/upload"]')).toBeNull();
+    expect(page.textContent).toContain('Checking offer letters is for student accounts.');
   });
 
   it('tpo_showsTheirCollege', async () => {
