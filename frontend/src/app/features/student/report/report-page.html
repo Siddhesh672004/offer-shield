@@ -1,0 +1,219 @@
+<app-page-header heading="Risk report">
+  @if (submission(); as letter) {
+    <p>{{ sourceLabels[letter.sourceType] }} · sent {{ letter.createdAt | appDateTime }}</p>
+  } @else {
+    <p>Your offer letter's check.</p>
+  }
+  @if (isStudent()) {
+    <a appButton pageHeaderActions variant="secondary" routerLink="/app/upload"
+      >Check another letter</a
+    >
+  }
+</app-page-header>
+
+@switch (phase()) {
+  @case ('checking') {
+    <section class="card checking" aria-labelledby="checking-heading" aria-busy="true">
+      <h2 id="checking-heading" class="visually-hidden">Checking your letter</h2>
+      <app-spinner label="Checking your letter…" />
+      <p class="muted">
+        This usually takes under a minute. You can leave this page: the report will also be in My
+        submissions.
+      </p>
+      <app-skeleton [lines]="4" />
+    </section>
+  }
+  @case ('loading-report') {
+    <section class="card checking" aria-busy="true" aria-label="Loading the report">
+      <app-spinner label="Loading the report…" />
+      <app-skeleton [lines]="4" />
+    </section>
+  }
+  @case ('timeout') {
+    <app-notice tone="warn" [heading]="stillProcessing">
+      <p>
+        The check is taking longer than usual. Your letter is saved, and its report will appear in
+        <a routerLink="/app">My submissions</a> when it's ready.
+      </p>
+      <button appButton type="button" variant="secondary" size="sm" (click)="checkAgain()">
+        Check again
+      </button>
+    </app-notice>
+  }
+  @case ('failed') {
+    <app-notice tone="danger" heading="We couldn't check this letter">
+      <p>Something went wrong while checking it. Send the letter again to get a report.</p>
+    </app-notice>
+  }
+  @case ('deleted') {
+    <app-notice tone="info" heading="This letter was deleted">
+      <p>Letters and their reports are deleted 30 days after they're sent.</p>
+    </app-notice>
+  }
+  @case ('not-found') {
+    <app-notice tone="warn" heading="We couldn't find this letter">
+      <p>
+        The link may be wrong, or the letter belongs to another account. Your letters are in
+        <a routerLink="/app">My submissions</a>.
+      </p>
+    </app-notice>
+  }
+  @case ('error') {
+    <app-notice tone="danger" [heading]="errorHeading()">
+      <p>Check your connection and try again.</p>
+      <button appButton type="button" variant="secondary" size="sm" (click)="checkAgain()">
+        Try again
+      </button>
+    </app-notice>
+  }
+}
+
+@if (report(); as shown) {
+  <div class="report-layout">
+    <div class="report-main">
+      <section class="verdict" aria-label="Risk band">
+        <app-risk-band size="lg" [band]="shown.band" [score]="shown.score" />
+        @if (overrideNote(); as note) {
+          <p class="override-note"><strong>Why High:</strong> {{ note }}</p>
+        }
+        @if (!shown.aiUsed) {
+          <p class="ai-off">
+            <app-badge icon="none">AI unavailable</app-badge>
+            <span class="muted">Only the fixed rules ran. The AI never changes the score.</span>
+          </p>
+        }
+      </section>
+
+      @if (shown.registry.confirmedScam || shown.registry.reportedBy > 0) {
+        <section class="card registry" aria-labelledby="registry-heading">
+          <h2 id="registry-heading" class="card__title">Shared scam registry</h2>
+          @if (shown.registry.confirmedScam) {
+            <div class="registry__item">
+              <app-report-chip status="confirmed" />
+              <p>
+                A TPO or the admin confirmed a scam that shares details with this letter. Do not pay
+                anything or share your documents.
+              </p>
+            </div>
+          }
+          @if (shown.registry.reportedBy > 0) {
+            <div class="registry__item">
+              <app-report-chip status="reported" [reporters]="shown.registry.reportedBy" />
+              <p>
+                Other users reported a scam with matching details. No reviewer has checked these
+                reports yet, so treat them as a warning, not as proof.
+              </p>
+            </div>
+          }
+        </section>
+      }
+
+      @if (shown.registry.wordingWarning) {
+        <app-notice tone="warn" heading="Wording resembles a reported scam">
+          <p>
+            The wording matches a letter confirmed as a scam, but the sender uses the company's
+            official domain. This is a warning, not a confirmed scam: check the offer with the
+            company directly.
+          </p>
+        </app-notice>
+      }
+
+      @if (shown.partial) {
+        <app-notice tone="warn" heading="Partial report" class="partial-notice">
+          @if (unavailableTitles(); as titles) {
+            <p>
+              Some checks couldn't run, so they added no points: {{ titles }}. The other checks are
+              complete.
+            </p>
+          }
+          @if (!shown.aiUsed) {
+            <p>
+              AI unavailable: the AI helper didn't read the letter, so only the fixed rules ran.
+            </p>
+          }
+        </app-notice>
+      }
+
+      <app-explain [submissionId]="shown.submissionId" />
+
+      <section class="card" aria-labelledby="checks-heading">
+        <div class="card__header">
+          <div>
+            <h2 id="checks-heading" class="card__title">What the checks found</h2>
+            <p class="card__description">
+              Each result shows its evidence and where the fact came from (sources 1–5).
+            </p>
+          </div>
+        </div>
+        <app-signal-list [signals]="shown.signals" />
+      </section>
+
+      <section class="card" aria-labelledby="details-heading">
+        <h2 id="details-heading" class="card__title details-title">Details from the letter</h2>
+        <dl class="kv">
+          <div>
+            <dt>Sender domain</dt>
+            <dd>
+              <span translate="no">{{ shown.senderDomain ?? 'Not found' }}</span>
+              @if (shown.senderSource === 'LETTER') {
+                <span class="sender-source">Taken from the letter itself (not typed by you)</span>
+              }
+            </dd>
+          </div>
+        </dl>
+        <div class="ai-details">
+          <p class="ai-details__head">
+            <app-ai-tag />
+            <span class="muted">Read by the AI helper. These never change the score.</span>
+          </p>
+          @if (shown.aiDetails; as ai) {
+            <dl class="kv">
+              <div>
+                <dt>Company</dt>
+                <dd>{{ ai.companyName ?? 'Not found' }}</dd>
+              </div>
+              <div>
+                <dt>Recruiter</dt>
+                <dd>{{ ai.recruiterName ?? 'Not found' }}</dd>
+              </div>
+              <div>
+                <dt>Salary (CTC)</dt>
+                <dd>{{ ai.ctc ?? 'Not found' }}</dd>
+              </div>
+              <div>
+                <dt>Joining date</dt>
+                <dd>{{ ai.joiningDate ?? 'Not found' }}</dd>
+              </div>
+            </dl>
+          } @else if (shown.aiUsed) {
+            <p class="muted">The AI helper found no company, recruiter, salary or joining date.</p>
+          } @else {
+            <p class="muted">AI unavailable, so nothing was read by AI.</p>
+          }
+        </div>
+      </section>
+    </div>
+
+    <aside class="report-aside" aria-label="What you can do next">
+      @if (submission()?.onCampus) {
+        <app-ask-tpo [submissionId]="shown.submissionId" [canAsk]="canAskTpo()" />
+      }
+      <app-scam-report-card [submissionId]="shown.submissionId" [canReport]="canReportScam()" />
+      <section class="tips" aria-labelledby="tips-heading">
+        <h2 id="tips-heading">Before you act</h2>
+        <ul role="list">
+          <li>Never pay a fee, deposit or “refundable” charge to get a job.</li>
+          <li>Find the company's careers page yourself, not through a link in the letter.</li>
+          <li>Don't share Aadhaar, PAN or bank details until the company confirms the offer.</li>
+        </ul>
+      </section>
+    </aside>
+  </div>
+} @else if (phase() === 'deleted' && submission(); as letter) {
+  <div class="report-aside report-aside--alone">
+    @if (letter.onCampus) {
+      <app-ask-tpo [submissionId]="letter.id" />
+    }
+    <app-scam-report-card [submissionId]="letter.id" />
+  </div>
+}

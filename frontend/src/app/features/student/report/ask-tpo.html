@@ -1,0 +1,63 @@
+@if (current(); as reviewCase) {
+  <section class="card ask-tpo" aria-labelledby="ask-tpo-heading">
+    <div class="card__header">
+      <h2 id="ask-tpo-heading" class="card__title" tabindex="-1">Ask my TPO</h2>
+      <app-badge
+        [tone]="statuses[reviewCase.status].tone"
+        [icon]="statuses[reviewCase.status].icon"
+        >{{ statuses[reviewCase.status].label }}</app-badge
+      >
+    </div>
+    @if (alreadyAsked()) {
+      <p><strong>You already asked your TPO about this letter.</strong></p>
+    }
+    <p>{{ statuses[reviewCase.status].text }}</p>
+    @if (reviewCase.note) {
+      <p class="ask-tpo__note-label">Note from your TPO:</p>
+      <blockquote class="ask-tpo__note plain-text">{{ reviewCase.note }}</blockquote>
+    }
+    <p class="fine-print">
+      <span class="nowrap">Asked {{ reviewCase.createdAt | appDate }}</span>
+      @if (reviewCase.decidedAt) {
+        · <span class="nowrap">decided {{ reviewCase.decidedAt | appDate }}</span>
+      }
+    </p>
+  </section>
+} @else if (mineFailed()) {
+  <section class="card ask-tpo" aria-labelledby="ask-tpo-heading">
+    <div class="card__header">
+      <h2 id="ask-tpo-heading" class="card__title" tabindex="-1">Ask my TPO</h2>
+    </div>
+    <p class="ask-tpo__load-error">
+      Couldn't check whether you already asked your TPO about this letter. Check your connection and
+      try again.
+    </p>
+    <button appButton type="button" variant="secondary" size="sm" (click)="mine.reload()">
+      Try again
+    </button>
+  </section>
+} @else if (canAsk()) {
+  <section class="card ask-tpo" aria-labelledby="ask-tpo-heading">
+    <div class="card__header">
+      <h2 id="ask-tpo-heading" class="card__title" tabindex="-1">Ask my TPO</h2>
+    </div>
+    <p>
+      Send this report to your college's TPO. They check it and mark the letter as a scam, genuine,
+      or inconclusive. You'll get an email when they decide.
+    </p>
+    @if (error(); as message) {
+      <p class="field__error ask-tpo__error">{{ message }}</p>
+    }
+    <button
+      appButton
+      type="button"
+      class="ask-tpo__button"
+      [block]="true"
+      [loading]="asking()"
+      [disabled]="asking()"
+      (click)="ask()"
+    >
+      {{ asking() ? 'Sending…' : notReady() ? 'Try again' : 'Ask my TPO' }}
+    </button>
+  </section>
+}
