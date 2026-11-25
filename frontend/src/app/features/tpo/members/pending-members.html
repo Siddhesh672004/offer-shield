@@ -1,0 +1,121 @@
+<app-page-header heading="Pending members">
+  <p>
+    Students who asked to join {{ collegeName() }}. Approve the ones you recognise. To reject a
+    request, give a reason: the student sees it.
+  </p>
+</app-page-header>
+
+@if (outcome(); as shown) {
+  <app-notice id="members-outcome" [tone]="shown.tone"
+    ><p>{{ shown.text }}</p></app-notice
+  >
+}
+
+@if (members.isLoading() && !members.hasValue()) {
+  <div class="card" aria-busy="true">
+    <app-skeleton [lines]="4" />
+    <span class="visually-hidden">Loading the requests…</span>
+  </div>
+} @else if (members.error()) {
+  <app-notice tone="danger" heading="Couldn't load the requests">
+    <p>Check your connection and try again.</p>
+    <button appButton type="button" variant="secondary" size="sm" (click)="members.reload()">
+      Try again
+    </button>
+  </app-notice>
+} @else if (list().length > 0) {
+  <p class="muted members-count">{{ countLabel() }}</p>
+  <ul class="list" role="list">
+    @for (member of list(); track member.id) {
+      <li class="member" [id]="'member-' + member.id">
+        <div class="member__who">
+          <h2 class="member__name" [id]="'member-' + member.id + '-name'">
+            {{ member.studentName }}
+          </h2>
+          <p class="member__email" translate="no">{{ member.studentEmail }}</p>
+        </div>
+        <dl class="member__facts">
+          <div>
+            <dt>Roll number</dt>
+            <dd>{{ member.rollNo }}</dd>
+          </div>
+          <div>
+            <dt>Department</dt>
+            <dd>{{ member.department }}</dd>
+          </div>
+          <div>
+            <dt>Asked on</dt>
+            <dd class="nowrap">{{ member.requestedAt | appDate }}</dd>
+          </div>
+        </dl>
+
+        @if (rejectingId() === member.id) {
+          <form
+            class="member__reject-form"
+            novalidate
+            [formRoot]="reasonForm"
+            [attr.aria-label]="'Reject ' + member.studentName + '’s request'"
+            (keydown.escape)="cancelReject(member)"
+          >
+            <app-field
+              label="Reason for rejecting"
+              fieldId="reject-reason"
+              hint="The student sees this in an email and on their join page. Up to 500 characters."
+              [error]="reasonError()"
+            >
+              <textarea
+                id="reject-reason"
+                class="textarea"
+                rows="3"
+                autocomplete="off"
+                [formField]="reasonForm.reason"
+                [attr.aria-invalid]="reasonError() ? 'true' : null"
+                [attr.aria-describedby]="reasonDescribedBy()"
+              ></textarea>
+            </app-field>
+            <div class="cluster">
+              <button
+                appButton
+                type="submit"
+                variant="danger"
+                [loading]="busyId() === member.id"
+                [disabled]="busyId() !== null"
+              >
+                Reject request
+              </button>
+              <button appButton type="button" variant="ghost" (click)="cancelReject(member)">
+                Cancel
+              </button>
+            </div>
+          </form>
+        } @else {
+          <div class="cluster member__actions">
+            <button
+              appButton
+              type="button"
+              [loading]="busyId() === member.id"
+              [disabled]="busyId() !== null"
+              (click)="approve(member)"
+            >
+              Approve<span class="visually-hidden"> {{ member.studentName }}</span>
+            </button>
+            <button
+              appButton
+              type="button"
+              variant="secondary"
+              class="member__reject"
+              [disabled]="busyId() !== null"
+              (click)="startReject(member)"
+            >
+              Reject<span class="visually-hidden"> {{ member.studentName }}’s request</span>
+            </button>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+} @else {
+  <app-empty-state heading="No one is waiting" icon="inbox">
+    <p>When a student asks to join {{ collegeName() }}, their request appears here.</p>
+  </app-empty-state>
+}

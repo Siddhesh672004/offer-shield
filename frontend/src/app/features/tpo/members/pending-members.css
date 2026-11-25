@@ -1,0 +1,67 @@
+.members-count {
+  margin-bottom: var(--space-3);
+}
+
+.member {
+  display: grid;
+  gap: var(--space-3) var(--space-5);
+}
+
+.member__name {
+  margin: 0;
+  font-size: var(--text-md);
+}
+
+.member__email {
+  margin: 0;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.member__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.member__facts dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.member__facts dd {
+  margin: 0;
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.member__reject-form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-subtle);
+}
+
+.member__reject-form app-field {
+  margin: 0;
+}
+
+@media (min-width: 48rem) {
+  .member {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto;
+    align-items: center;
+  }
+
+  .member__reject-form {
+    grid-column: 1 / -1;
+  }
+
+  /* Roll number, department and date line up from row to row. */
+  .member__facts {
+    display: grid;
+    grid-template-columns: fit-content(11rem) minmax(0, 1fr) max-content;
+  }
+}

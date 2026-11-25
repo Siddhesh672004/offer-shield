@@ -1,24 +1,24 @@
-import { Component, computed, inject } from '@angular/core';
 import { Routes } from '@angular/router';
-import { Session } from '../../core/auth/session';
 
-/** Placeholder until P12-03 (pending members, review queue). */
-@Component({
-  selector: 'app-tpo-home',
-  template: `
-    <h1>TPO desk</h1>
-    <p class="lead">Join requests and review cases for {{ collegeName() }} will appear here.</p>
-  `,
-})
-export class TpoHome {
-  private readonly session = inject(Session);
-
-  protected readonly collegeName = computed(
-    () => this.session.me()?.college?.name ?? 'your college',
-  );
-}
-
-/** Lazy /tpo area; `roleGuard('TPO')` decides whether it matches. */
+/**
+ * Lazy /tpo area; `roleGuard('TPO')` decides whether it matches. The server still checks every
+ * call (TPO role, college from the database). `:id` binds to the case page's `id` input.
+ */
 export const tpoRoutes: Routes = [
-  { path: '', title: 'TPO desk | OfferShield', component: TpoHome },
+  { path: '', pathMatch: 'full', redirectTo: 'members' },
+  {
+    path: 'members',
+    title: 'Pending members | OfferShield',
+    loadComponent: () => import('./members/pending-members').then((m) => m.PendingMembers),
+  },
+  {
+    path: 'reviews',
+    title: 'Review queue | OfferShield',
+    loadComponent: () => import('./reviews/review-queue').then((m) => m.ReviewQueue),
+  },
+  {
+    path: 'reviews/:id',
+    title: 'Review an offer | OfferShield',
+    loadComponent: () => import('./reviews/review-case').then((m) => m.ReviewCase),
+  },
 ];
