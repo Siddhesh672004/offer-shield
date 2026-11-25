@@ -1,0 +1,146 @@
+<app-page-header heading="Review an offer">
+  @if (current(); as shown) {
+    <p>
+      Asked by {{ shown.studentName ?? 'a student' }}
+      @if (shown.studentEmail) {
+        (<span translate="no">{{ shown.studentEmail }}</span
+        >)
+      }
+      on <span class="nowrap">{{ shown.createdAt | appDateTime }}</span
+      >.
+    </p>
+  } @else {
+    <p>A student asked you to check an offer letter.</p>
+  }
+  <a pageHeaderActions class="link-action" routerLink="/tpo/reviews">Back to the review queue</a>
+</app-page-header>
+
+@if (outcome(); as shown) {
+  <app-notice id="case-outcome" [tone]="shown.tone"
+    ><p>{{ shown.text }}</p></app-notice
+  >
+}
+
+@if (reviewCase.isLoading() && !current()) {
+  <div class="card" aria-busy="true">
+    <app-skeleton [lines]="5" />
+    <span class="visually-hidden">Loading the case…</span>
+  </div>
+} @else if (notFound()) {
+  <app-notice tone="warn" heading="We couldn't find this case">
+    <p>
+      The link may be wrong, or the case belongs to another college. Your open cases are in the
+      <a routerLink="/tpo/reviews">review queue</a>.
+    </p>
+  </app-notice>
+} @else if (reviewCase.error() && !current()) {
+  <app-notice tone="danger" heading="Couldn't load this case">
+    <p>Check your connection and try again.</p>
+    <button appButton type="button" variant="secondary" size="sm" (click)="reviewCase.reload()">
+      Try again
+    </button>
+  </app-notice>
+} @else if (current(); as shown) {
+  <div class="case-layout">
+    <section class="card" aria-labelledby="evidence-heading">
+      <div class="card__header">
+        <div>
+          <h2 id="evidence-heading" class="card__title">Evidence</h2>
+          <p class="card__description">
+            From the risk report OfferShield made for this letter. The letter's full text isn't
+            shown here.
+          </p>
+        </div>
+      </div>
+      @if (shown.evidence; as evidence) {
+        <app-evidence [evidence]="evidence" />
+      } @else {
+        <app-notice tone="info" heading="Report deleted">
+          <p>
+            This letter's report was deleted after 30 days. You can still decide, but you can't mark
+            it as a scam.
+          </p>
+        </app-notice>
+      }
+    </section>
+
+    <div class="case-side">
+      <section class="card" aria-labelledby="letter-heading">
+        <h2 id="letter-heading" class="card__title">The letter</h2>
+        <app-pdf-link [available]="shown.pdfAvailable" [fetch]="pdfFetch" />
+      </section>
+
+      @if (shown.status === 'OPEN') {
+        <form
+          class="card decision"
+          novalidate
+          aria-labelledby="decision-heading"
+          [formRoot]="decisionForm"
+        >
+          <h2 id="decision-heading" class="card__title">Your decision</h2>
+          <fieldset
+            class="decision__options"
+            [attr.aria-describedby]="decisionError() ? 'decision-error' : null"
+          >
+            <legend class="field__label">What do you conclude?</legend>
+            @for (option of options; track option.value) {
+              <label class="decision__option">
+                <input type="radio" [value]="option.value" [formField]="decisionForm.decision" />
+                <span>
+                  <span class="decision__label">{{ option.label }}</span>
+                  <span class="decision__hint">{{ option.hint }}</span>
+                </span>
+              </label>
+            }
+            @if (decisionError(); as error) {
+              <p class="field__error" id="decision-error">{{ error }}</p>
+            }
+          </fieldset>
+
+          <app-field
+            label="Note to the student (optional)"
+            fieldId="decision-note"
+            hint="Included in their email. Up to 1,000 characters."
+            [error]="noteError()"
+          >
+            <textarea
+              id="decision-note"
+              class="textarea"
+              rows="4"
+              autocomplete="off"
+              [formField]="decisionForm.note"
+              [attr.aria-invalid]="noteError() ? 'true' : null"
+              [attr.aria-describedby]="noteDescribedBy()"
+            ></textarea>
+          </app-field>
+
+          <button
+            appButton
+            type="submit"
+            [block]="true"
+            [loading]="sending()"
+            [disabled]="sending()"
+          >
+            Send decision
+          </button>
+        </form>
+      } @else {
+        <section class="card decided" aria-labelledby="decided-heading">
+          <div class="card__header">
+            <h2 id="decided-heading" class="card__title" tabindex="-1">Decision</h2>
+            <app-badge [tone]="statuses[shown.status].tone" [icon]="statuses[shown.status].icon">{{
+              statuses[shown.status].label
+            }}</app-badge>
+          </div>
+          @if (shown.decidedAt) {
+            <p class="fine-print">Decided {{ shown.decidedAt | appDateTime }}.</p>
+          }
+          @if (shown.note) {
+            <p class="decided__label">Note to the student:</p>
+            <blockquote class="decided__note plain-text">{{ shown.note }}</blockquote>
+          }
+        </section>
+      }
+    </div>
+  </div>
+}
