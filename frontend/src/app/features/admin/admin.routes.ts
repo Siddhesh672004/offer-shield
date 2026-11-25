@@ -1,19 +1,25 @@
-import { Component } from '@angular/core';
 import { Routes } from '@angular/router';
 
-/** Placeholder until P12-04 (colleges and TPOs, scam reports, known companies). */
-@Component({
-  selector: 'app-admin-home',
-  template: `
-    <h1>Admin</h1>
-    <p class="lead">
-      Colleges, TPO assignments and scam reports waiting for review will appear here.
-    </p>
-  `,
-})
-export class AdminHome {}
-
-/** Lazy /admin area; `roleGuard('ADMIN')` decides whether it matches. */
+/**
+ * Lazy /admin area; `roleGuard('ADMIN')` decides whether it matches. The server still checks
+ * every call (ADMIN only). `?status=` binds to the scam-report page's `status` input.
+ */
 export const adminRoutes: Routes = [
-  { path: '', title: 'Admin | OfferShield', component: AdminHome },
+  { path: '', pathMatch: 'full', redirectTo: 'colleges' },
+  {
+    path: 'colleges',
+    title: 'Colleges and TPOs | OfferShield',
+    loadComponent: () => import('./colleges/admin-colleges').then((m) => m.AdminColleges),
+  },
+  {
+    path: 'scam-reports',
+    title: 'Scam reports | OfferShield',
+    loadComponent: () =>
+      import('./scam-reports/admin-scam-reports').then((m) => m.AdminScamReports),
+  },
+  {
+    path: 'companies',
+    title: 'Known companies | OfferShield',
+    loadComponent: () => import('./companies/known-companies').then((m) => m.KnownCompanies),
+  },
 ];

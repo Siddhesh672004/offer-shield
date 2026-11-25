@@ -1,0 +1,156 @@
+<app-page-header heading="Colleges and TPOs">
+  <p>
+    Add colleges and assign each one's training and placement officer (TPO). A TPO approves the
+    students who join and reviews the offers they send.
+  </p>
+</app-page-header>
+
+<div class="admin-layout">
+  <section aria-labelledby="colleges-heading">
+    <h2 id="colleges-heading" class="section-title">
+      Colleges
+      @if (colleges.hasValue()) {
+        <span class="muted">({{ list().length }})</span>
+      }
+    </h2>
+
+    @if (colleges.isLoading() && !colleges.hasValue()) {
+      <div class="card" aria-busy="true">
+        <app-skeleton [lines]="4" />
+        <span class="visually-hidden">Loading colleges…</span>
+      </div>
+    } @else if (colleges.error() && !colleges.hasValue()) {
+      <app-notice tone="danger" heading="Couldn't load the colleges">
+        <p>Check your connection and try again.</p>
+        <button appButton type="button" variant="secondary" size="sm" (click)="colleges.reload()">
+          Try again
+        </button>
+      </app-notice>
+    } @else if (list().length > 0) {
+      <ul class="list" role="list">
+        @for (college of list(); track college.id) {
+          <li class="college">
+            <div class="college__head">
+              <h3 class="college__name">{{ college.name }}</h3>
+              @if (college.status === 'INACTIVE') {
+                <app-badge>Inactive</app-badge>
+              }
+            </div>
+            <p class="college__city">{{ college.city ?? 'City not given' }}</p>
+            @if (college.tpoEmails.length === 0 && college.pendingTpoEmails.length === 0) {
+              <p class="muted">No TPO yet.</p>
+            } @else {
+              <ul class="tpos" role="list" [attr.aria-label]="'TPOs of ' + college.name">
+                @for (email of college.tpoEmails; track email) {
+                  <li class="tpo">
+                    <span class="tpo__email" translate="no">{{ email }}</span>
+                    <app-badge tone="success" icon="check">Assigned</app-badge>
+                  </li>
+                }
+                @for (email of college.pendingTpoEmails; track email) {
+                  <li class="tpo">
+                    <span class="tpo__email" translate="no">{{ email }}</span>
+                    <app-badge tone="warn" icon="clock">Waiting for first sign-in</app-badge>
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <app-empty-state heading="No colleges yet" icon="document" [headingLevel]="3">
+        <p>Add the first college with the form, then assign its TPO.</p>
+      </app-empty-state>
+    }
+  </section>
+
+  <div class="admin-side">
+    <form
+      class="card side-form"
+      novalidate
+      aria-labelledby="add-college-heading"
+      [formRoot]="collegeForm"
+    >
+      <h2 id="add-college-heading" class="card__title">Add a college</h2>
+      @if (addOutcome(); as shown) {
+        <app-notice id="college-outcome" [tone]="shown.tone"
+          ><p>{{ shown.text }}</p></app-notice
+        >
+      }
+      <app-field label="Name" fieldId="college-name" [error]="nameError()">
+        <input
+          id="college-name"
+          class="input"
+          autocomplete="off"
+          [formField]="collegeForm.name"
+          [attr.aria-invalid]="nameError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('college-name', false, nameError())"
+        />
+      </app-field>
+      <app-field label="City (optional)" fieldId="college-city" [error]="cityError()">
+        <input
+          id="college-city"
+          class="input"
+          autocomplete="off"
+          [formField]="collegeForm.city"
+          [attr.aria-invalid]="cityError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('college-city', false, cityError())"
+        />
+      </app-field>
+      <button appButton type="submit" [loading]="adding()" [disabled]="adding()">
+        Add college
+      </button>
+    </form>
+
+    <form
+      class="card side-form"
+      novalidate
+      aria-labelledby="assign-heading"
+      [formRoot]="assignForm"
+    >
+      <div>
+        <h2 id="assign-heading" class="card__title">Assign a TPO</h2>
+        <p class="card__description">
+          Someone who has signed in before becomes the TPO now; anyone else at their first Google
+          sign-in. A TPO of another college moves to this one.
+        </p>
+      </div>
+      @if (assignOutcome(); as shown) {
+        <app-notice id="assign-outcome" [tone]="shown.tone"
+          ><p>{{ shown.text }}</p></app-notice
+        >
+      }
+      <app-field label="College" fieldId="assign-college" [error]="assignCollegeError()">
+        <select
+          id="assign-college"
+          class="select"
+          [formField]="assignForm.collegeId"
+          [attr.aria-invalid]="assignCollegeError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('assign-college', false, assignCollegeError())"
+        >
+          <option value="">Choose a college</option>
+          @for (college of list(); track college.id) {
+            <option [value]="college.id">{{ college.name }}</option>
+          }
+        </select>
+      </app-field>
+      <app-field label="TPO's Google email" fieldId="assign-email" [error]="emailError()">
+        <input
+          id="assign-email"
+          class="input"
+          type="email"
+          inputmode="email"
+          autocomplete="off"
+          spellcheck="false"
+          [formField]="assignForm.email"
+          [attr.aria-invalid]="emailError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('assign-email', false, emailError())"
+        />
+      </app-field>
+      <button appButton type="submit" [loading]="assigning()" [disabled]="assigning()">
+        Assign TPO
+      </button>
+    </form>
+  </div>
+</div>
