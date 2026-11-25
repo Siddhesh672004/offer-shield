@@ -1,0 +1,172 @@
+<app-page-header heading="Check an offer letter">
+  <p>
+    Upload the PDF or paste the text. OfferShield runs fixed checks and shows the evidence behind
+    every flag.
+  </p>
+</app-page-header>
+
+<div class="upload-layout">
+  <form class="card upload" aria-label="Offer letter" novalidate [formRoot]="uploadForm">
+    <fieldset class="modes">
+      <legend class="field__label">How do you want to add the letter?</legend>
+      <div class="modes__options">
+        <label class="mode">
+          <input type="radio" value="pdf" [formField]="uploadForm.mode" />
+          <span class="mode__text">
+            <span class="mode__title">Upload a PDF</span>
+            <span class="mode__hint">Up to 5 MB and 10 pages</span>
+          </span>
+        </label>
+        <label class="mode">
+          <input type="radio" value="text" [formField]="uploadForm.mode" />
+          <span class="mode__text">
+            <span class="mode__title">Paste the text</span>
+            <span class="mode__hint">From an email or a chat message</span>
+          </span>
+        </label>
+      </div>
+    </fieldset>
+
+    @if (mode() === 'pdf') {
+      <app-field
+        label="Offer letter (PDF)"
+        fieldId="letter-file"
+        hint="PDF only, up to 5 MB and 10 pages."
+        [error]="fileError()"
+      >
+        <input
+          id="letter-file"
+          name="file"
+          class="file-input"
+          type="file"
+          accept="application/pdf,.pdf"
+          (change)="onFileChosen($event)"
+          [attr.aria-invalid]="fileError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('letter-file', true, fileError())"
+        />
+      </app-field>
+      @if (fileError()) {
+        <button
+          type="button"
+          class="button button--secondary paste-instead"
+          (click)="pasteInstead()"
+        >
+          Paste the text instead
+        </button>
+      }
+    } @else {
+      <app-field
+        label="Letter text"
+        fieldId="letter-text"
+        [hint]="textLength() + ' of ' + maxTextLabel + ' characters'"
+        [error]="textError()"
+      >
+        <textarea
+          id="letter-text"
+          autocomplete="off"
+          class="textarea letter-text"
+          rows="10"
+          spellcheck="false"
+          placeholder="Paste the whole letter, including the sender's details…"
+          [formField]="uploadForm.text"
+          [attr.aria-invalid]="textError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('letter-text', true, textError())"
+        ></textarea>
+      </app-field>
+    }
+
+    <fieldset class="details">
+      <legend class="details__legend">Optional details</legend>
+      <p class="field__hint details__hint">
+        From the email or message that brought the offer. They make the checks stronger.
+      </p>
+
+      <app-field label="Sender's email" fieldId="sender-email" [error]="emailError()">
+        <input
+          id="sender-email"
+          class="input"
+          type="email"
+          inputmode="email"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="hr@company.com…"
+          [formField]="uploadForm.senderEmail"
+          [attr.aria-invalid]="emailError() ? 'true' : null"
+          [attr.aria-describedby]="describedBy('sender-email', false, emailError())"
+        />
+      </app-field>
+
+      <div class="details__row">
+        <app-field label="Recruiter's phone" fieldId="recruiter-phone" [error]="phoneError()">
+          <input
+            id="recruiter-phone"
+            class="input"
+            type="tel"
+            inputmode="tel"
+            autocomplete="off"
+            placeholder="+91 …"
+            [formField]="uploadForm.recruiterPhone"
+            [attr.aria-invalid]="phoneError() ? 'true' : null"
+            [attr.aria-describedby]="describedBy('recruiter-phone', false, phoneError())"
+          />
+        </app-field>
+
+        <app-field label="UPI ID" fieldId="upi-id" [error]="upiError()">
+          <input
+            id="upi-id"
+            class="input"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="name@bank…"
+            [formField]="uploadForm.upiId"
+            [attr.aria-invalid]="upiError() ? 'true' : null"
+            [attr.aria-describedby]="describedBy('upi-id', false, upiError())"
+          />
+        </app-field>
+      </div>
+    </fieldset>
+
+    @if (sendError(); as message) {
+      <app-notice tone="danger" class="upload-error"
+        ><p>{{ message }}</p></app-notice
+      >
+    }
+
+    @if (sentLink(); as link) {
+      <app-notice tone="success" heading="Letter sent" class="upload-sent">
+        <p>Its report didn't open here. <a [href]="link">Open the report</a></p>
+      </app-notice>
+    }
+
+    <div class="card__footer">
+      <button appButton type="submit" size="lg" [loading]="sending()" [disabled]="sending()">
+        {{ sending() ? 'Sending…' : 'Check this letter' }}
+      </button>
+      <p class="fine-print upload__privacy">
+        Stored encrypted and deleted after 30 days. Emails, phone numbers and UPI IDs are masked
+        before the AI helper reads the letter.
+      </p>
+    </div>
+  </form>
+
+  <aside class="upload-aside" aria-labelledby="next-heading">
+    <h2 id="next-heading">What happens next</h2>
+    <ol class="steps" role="list">
+      <li>
+        <strong>We read the letter</strong>
+        <p>Only its text is used. Links in the letter are never opened.</p>
+      </li>
+      <li>
+        <strong>The checks run</strong>
+        <p>
+          Fixed rules, public domain records and reports from other users. Usually under a minute.
+        </p>
+      </li>
+      <li>
+        <strong>You get a report</strong>
+        <p>A risk band, the evidence behind each flag, and where each fact came from.</p>
+      </li>
+    </ol>
+  </aside>
+</div>
