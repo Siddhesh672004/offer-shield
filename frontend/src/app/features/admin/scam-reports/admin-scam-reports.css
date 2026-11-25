@@ -1,0 +1,78 @@
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tabs__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  margin-bottom: -1px;
+  padding: 0 var(--space-4);
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+}
+
+.tabs__link:hover {
+  color: var(--color-text);
+}
+
+.tabs__link[aria-current='page'] {
+  border-bottom-color: var(--color-primary);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+.reports {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.report {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.report > .card__header,
+.report > app-notice {
+  margin: 0;
+}
+
+.report__claim {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.report__claim p,
+.report__pdf p {
+  margin: 0;
+}
+
+.report__label {
+  font-weight: var(--weight-semibold);
+}
+
+.report__description {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-border-strong);
+  background: var(--color-surface-muted);
+}
+
+.report__pdf {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.report > .card__footer {
+  margin-top: 0;
+}
+
+.card__footer app-confirm-step {
+  flex: 1 1 100%;
+}

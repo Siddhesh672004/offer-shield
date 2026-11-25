@@ -1,0 +1,211 @@
+<app-page-header heading="Known companies">
+  <p>
+    Genuine employers and their official email domains. OfferShield flags a letter that names one of
+    these companies but comes from another domain, or from a look-alike of one.
+  </p>
+</app-page-header>
+
+@if (outcome(); as shown) {
+  <app-notice id="companies-outcome" [tone]="shown.tone"
+    ><p>{{ shown.text }}</p></app-notice
+  >
+}
+
+<div class="admin-layout">
+  <section aria-labelledby="companies-heading">
+    <h2 id="companies-heading" class="section-title">
+      Companies
+      @if (companies.hasValue()) {
+        <span class="muted">({{ list().length }})</span>
+      }
+    </h2>
+
+    @if (companies.isLoading() && !companies.hasValue()) {
+      <div class="card" aria-busy="true">
+        <app-skeleton [lines]="4" />
+        <span class="visually-hidden">Loading known companies…</span>
+      </div>
+    } @else if (companies.error() && !companies.hasValue()) {
+      <app-notice tone="danger" heading="Couldn't load the known companies">
+        <p>Check your connection and try again.</p>
+        <button appButton type="button" variant="secondary" size="sm" (click)="companies.reload()">
+          Try again
+        </button>
+      </app-notice>
+    } @else if (list().length > 0) {
+      <ul class="list" role="list">
+        @for (company of list(); track company.id) {
+          <li class="company" [id]="'company-' + company.id">
+            <div class="company__head">
+              <h3 class="company__name" [id]="'company-' + company.id + '-name'">
+                {{ company.name }}
+              </h3>
+              @if (deletingId() !== company.id) {
+                <button
+                  appButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="company__delete"
+                  [loading]="busy() === 'delete:' + company.id"
+                  [disabled]="busy() !== null"
+                  (click)="deletingId.set(company.id)"
+                >
+                  Delete<span class="visually-hidden"> {{ company.name }}</span>
+                </button>
+              }
+            </div>
+            @if (deletingId() === company.id) {
+              <app-confirm-step
+                [question]="
+                  'Delete ' +
+                  company.name +
+                  ' and its domains? Letters naming it will no longer be compared with them.'
+                "
+                confirmLabel="Delete company"
+                (confirmed)="deleteCompany(company)"
+                (cancelled)="cancelDelete(company)"
+              />
+            }
+
+            <ul
+              class="domains"
+              role="list"
+              [attr.aria-label]="'Official domains of ' + company.name"
+            >
+              @for (domain of company.domains; track domain) {
+                <li class="domain">
+                  <span class="domain__name" translate="no">{{ domain }}</span>
+                  @if (company.domains.length > 1) {
+                    <button
+                      appButton
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      [loading]="busy() === 'remove:' + company.id + ':' + domain"
+                      [disabled]="busy() !== null"
+                      (click)="removeDomain(company, domain)"
+                    >
+                      Remove<span class="visually-hidden"> {{ domain }}</span>
+                    </button>
+                  }
+                </li>
+              }
+            </ul>
+
+            @if (addingTo() === company.id) {
+              <form
+                class="add-domain"
+                novalidate
+                [formRoot]="domainForm"
+                [attr.aria-label]="'Add a domain to ' + company.name"
+                (keydown.escape)="cancelAdd(company)"
+              >
+                <app-field label="New domain" fieldId="new-domain" [error]="newDomainError()">
+                  <input
+                    id="new-domain"
+                    class="input"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="e.g. careers-example.com…"
+                    [formField]="domainForm.domain"
+                    [attr.aria-invalid]="newDomainError() ? 'true' : null"
+                    [attr.aria-describedby]="describedBy('new-domain', false, newDomainError())"
+                  />
+                </app-field>
+                <div class="cluster">
+                  <button
+                    appButton
+                    type="submit"
+                    size="sm"
+                    [loading]="busy() === 'add:' + company.id"
+                    [disabled]="busy() !== null"
+                  >
+                    Add domain
+                  </button>
+                  <button
+                    appButton
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    (click)="cancelAdd(company)"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            } @else if (company.domains.length < maxDomains) {
+              <button
+                appButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                class="company__add"
+                [disabled]="busy() !== null"
+                (click)="startAdd(company)"
+              >
+                Add a domain<span class="visually-hidden"> to {{ company.name }}</span>
+              </button>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <app-empty-state heading="No known companies yet" icon="search" [headingLevel]="3">
+        <p>
+          Add employers students often hear from, with every official domain they send mail from.
+          Until then, the company checks can't run.
+        </p>
+      </app-empty-state>
+    }
+  </section>
+
+  <form
+    class="card side-form"
+    novalidate
+    aria-labelledby="add-company-heading"
+    [formRoot]="companyForm"
+  >
+    <h2 id="add-company-heading" class="card__title">Add a company</h2>
+    @if (createOutcome(); as shown) {
+      <app-notice id="company-outcome" [tone]="shown.tone"
+        ><p>{{ shown.text }}</p></app-notice
+      >
+    }
+    <app-field
+      label="Company name"
+      fieldId="company-name"
+      hint="As people write it, e.g. Northwind Analytics."
+      [error]="nameError()"
+    >
+      <input
+        id="company-name"
+        class="input"
+        autocomplete="off"
+        [formField]="companyForm.name"
+        [attr.aria-invalid]="nameError() ? 'true' : null"
+        [attr.aria-describedby]="describedBy('company-name', true, nameError())"
+      />
+    </app-field>
+    <app-field
+      label="Official domains"
+      fieldId="company-domains"
+      hint="One per line, up to 10. Add only domains you have checked on the company's own website. careers.example.com is saved as example.com."
+      [error]="domainsError()"
+    >
+      <textarea
+        id="company-domains"
+        class="textarea"
+        rows="4"
+        autocomplete="off"
+        spellcheck="false"
+        [formField]="companyForm.domains"
+        [attr.aria-invalid]="domainsError() ? 'true' : null"
+        [attr.aria-describedby]="describedBy('company-domains', true, domainsError())"
+      ></textarea>
+    </app-field>
+    <button appButton type="submit" [loading]="busy() === 'create'" [disabled]="busy() !== null">
+      Add company
+    </button>
+  </form>
+</div>

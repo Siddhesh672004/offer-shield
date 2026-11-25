@@ -1,0 +1,136 @@
+<app-page-header heading="Scam reports">
+  <p>
+    Users report letters they believe are scams. Read the evidence, then confirm or reject each
+    report. Confirming flags letters that share its details as “Confirmed scam” for everyone.
+  </p>
+</app-page-header>
+
+<nav class="tabs" aria-label="Report status">
+  @for (tab of tabs; track tab) {
+    <a
+      class="tabs__link"
+      [routerLink]="[]"
+      [queryParams]="{ status: tab }"
+      [attr.aria-current]="current() === tab ? 'page' : null"
+      >{{ views[tab].tab }}</a
+    >
+  }
+</nav>
+
+@if (outcome(); as shown) {
+  <app-notice id="reports-outcome" [tone]="shown.tone"
+    ><p>{{ shown.text }}</p></app-notice
+  >
+}
+
+@if (reports.isLoading() && !reports.hasValue()) {
+  <div class="card" aria-busy="true">
+    <app-skeleton [lines]="5" />
+    <span class="visually-hidden">Loading scam reports…</span>
+  </div>
+} @else if (reports.error() && !reports.hasValue()) {
+  <app-notice tone="danger" heading="Couldn't load the scam reports">
+    <p>Check your connection and try again.</p>
+    <button appButton type="button" variant="secondary" size="sm" (click)="reports.reload()">
+      Try again
+    </button>
+  </app-notice>
+} @else if (list().length > 0) {
+  <div class="reports">
+    @for (report of list(); track report.id) {
+      <article
+        class="card report"
+        [id]="'report-' + report.id"
+        [attr.aria-labelledby]="'report-' + report.id + '-heading'"
+      >
+        <div class="card__header">
+          <div>
+            <h2 class="card__title" [id]="'report-' + report.id + '-heading'">
+              Report from <span class="nowrap">{{ report.createdAt | appDateTime }}</span>
+            </h2>
+            @if (report.decidedAt) {
+              <p class="card__description">Decided {{ report.decidedAt | appDateTime }}</p>
+            }
+          </div>
+          <app-badge [tone]="views[report.status].tone" [icon]="views[report.status].icon">{{
+            views[report.status].label
+          }}</app-badge>
+        </div>
+
+        <div class="report__claim">
+          <p class="report__label">What the reporter says</p>
+          @if (report.description !== null) {
+            <blockquote class="report__description plain-text">{{ report.description }}</blockquote>
+          } @else {
+            <p class="muted">The description was deleted 30 days after the decision.</p>
+          }
+          <p class="report__amount">
+            Amount asked:
+            <strong class="nowrap">{{
+              report.amountAsked === null ? 'None given' : (report.amountAsked | appRupees)
+            }}</strong>
+          </p>
+          <p class="fine-print">Reports are claims until you confirm them.</p>
+        </div>
+
+        @if (report.evidence; as evidence) {
+          <app-evidence
+            [evidence]="evidence"
+            [revertable]="true"
+            [revertingId]="revertLock()"
+            (revert)="revert(report, $event)"
+          />
+        } @else {
+          <app-notice tone="info">
+            <p>
+              This letter's report was deleted after 30 days, so its evidence is gone and the report
+              can't be confirmed.
+            </p>
+          </app-notice>
+        }
+
+        <div class="report__pdf">
+          <p class="report__label">The letter</p>
+          <app-pdf-link [available]="report.pdfAvailable" [fetch]="pdfFetch(report.id)" />
+        </div>
+
+        @if (report.status === 'OPEN') {
+          <div class="card__footer">
+            @if (rejectingId() === report.id) {
+              <app-confirm-step
+                question="Reject this report? Its markers stop counting this reporter's report. This can't be undone."
+                confirmLabel="Reject report"
+                (confirmed)="reject(report)"
+                (cancelled)="cancelReject(report)"
+              />
+            } @else {
+              <button
+                appButton
+                type="button"
+                [loading]="busyId() === report.id"
+                [disabled]="busy()"
+                (click)="confirm(report)"
+              >
+                Confirm scam
+              </button>
+              <button
+                appButton
+                type="button"
+                variant="secondary"
+                class="report__reject"
+                [disabled]="busy()"
+                (click)="rejectingId.set(report.id)"
+              >
+                Reject<span class="visually-hidden"> this report</span>
+              </button>
+            }
+          </div>
+        }
+      </article>
+    }
+  </div>
+} @else {
+  <app-empty-state [heading]="views[current()].empty" icon="flag">
+    <p>{{ views[current()].emptyText }}</p>
+  </app-empty-state>
+}
