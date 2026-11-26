@@ -1,0 +1,68 @@
+# Production overlay for the Oracle Cloud Always Free VM (D-23, P14). It is used on top of the base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Only the differences from local live here. Everything else (networks, read-only nginx, healthchecks, volumes,
+# the app's settings) comes from docker-compose.yml unchanged.
+#   - Caddy publishes 80 and 443 on all interfaces and serves https://${APP_DOMAIN} with an automatic
+#     Let's Encrypt certificate. It is the same Caddyfile: SITE_ADDRESS = APP_DOMAIN. Nothing else publishes a port
+#     (invariant 2). Caddy routes only /api, /oauth2 and /login to the app, so /actuator is not reachable from the
+#     internet at all, and application.yml exposes only "health" anyway.
+#   - Memory limits (M-09): app 1 GB (heap 60 % = about 600 MB, set in backend/Dockerfile), MySQL 1.5 GB,
+#     Kafka 1 GB (heap 512 MB), Caddy 128 MB, nginx 128 MB. Total about 3.75 GB, so it fits the 1 OCPU / 6 GB shape
+#     as well as the 2 OCPU / 12 GB one.
+#   - Container log rotation: at most 3 files of 10 MB per container. The app's own file log
+#     (logs/offershield.log) is rotated by logback (14 days, 1 GB cap).
+#   - restart: unless-stopped is already in the base file; it is repeated here so production never depends on it.
+#     Containers come back after a crash and after a VM reboot (Docker starts at boot).
+# Images are built on the VM, so they are arm64 natively (every base image publishes linux/arm64).
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    restart: unless-stopped
+    # "!override" replaces the base file's "127.0.0.1:80:80" instead of adding to it.
+    ports: !override
+      - "80:80"   # HTTP: Let's Encrypt's HTTP-01 check, then a redirect to HTTPS
+      - "443:443" # HTTPS
+    environment:
+      # Production never falls back to http://localhost: no APP_DOMAIN, no start.
+      SITE_ADDRESS: ${APP_DOMAIN:?APP_DOMAIN is not set in .env (production needs the DuckDNS name, e.g. myname.duckdns.org)}
+    mem_limit: 128m
+    logging: *logging
+
+  frontend:
+    restart: unless-stopped
+    mem_limit: 128m
+    logging: *logging
+
+  app:
+    restart: unless-stopped
+    environment:
+      # The public address. The app itself builds its links (e.g. the Google redirect URI) from the
+      # X-Forwarded-* headers that Caddy sets (server.forward-headers-strategy: framework).
+      APP_BASE_URL: https://${APP_DOMAIN:?APP_DOMAIN is not set in .env}
+    mem_limit: 1g
+    logging: *logging
+
+  mysql:
+    restart: unless-stopped
+    mem_limit: 1536m
+    logging: *logging
+
+  kafka:
+    restart: unless-stopped
+    environment:
+      # Kafka's start script defaults to a 1 GB heap, which would not fit a 1 GB container.
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms512m"
+    healthcheck:
+      # The probe starts a second, short-lived JVM in the same container. Give it Kafka's usual tool heap (256 MB)
+      # instead of inheriting the broker's 512 MB.
+      test: ["CMD-SHELL", "KAFKA_HEAP_OPTS=-Xmx256m /opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+    mem_limit: 1g
+    logging: *logging
