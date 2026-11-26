@@ -1,0 +1,14 @@
+[
+  { "name": "Tata Consultancy Services", "domains": ["tcs.com", "tcsion.com"] },
+  { "name": "Infosys", "domains": ["infosys.com"] },
+  { "name": "Wipro", "domains": ["wipro.com"] },
+  { "name": "Accenture", "domains": ["accenture.com"] },
+  { "name": "Cognizant", "domains": ["cognizant.com"] },
+  { "name": "Capgemini", "domains": ["capgemini.com", "sogeti.com", "frog.co"] },
+  { "name": "HCL Technologies", "domains": ["hcltech.com", "hcl.com"] },
+  { "name": "Tech Mahindra", "domains": ["techmahindra.com"] },
+  { "name": "LTIMindtree", "domains": ["ltm.com", "ltimindtree.com"] },
+  { "name": "IBM", "domains": ["ibm.com"] },
+  { "name": "Deloitte", "domains": ["deloitte.com"] },
+  { "name": "Amazon", "domains": ["amazon.com", "amazon.jobs"] }
+]
