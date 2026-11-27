@@ -28,7 +28,7 @@ A decision overrides the PRD text where they differ.
 
 ## Status
 
-Planning is complete. Implementation runs **one phase at a time** using the prompts in `docs/plan/07`. P1 (Foundation) started 2026-10-19.
+Planning is complete. Implementation runs **one phase at a time** using the prompts in `docs/plan/07`. P1–P4 are merged to `main`; P5–P13, P14-01 (prod compose + guide) and P15-01 (README) are done on `phase/p05-p13` (uncommitted, 2026-11-18). Secrets are in `.env`; the live checks ran on 2026-11-18 (05 §7). Next: owner's go-ahead to commit/push, then P14-02/03 on the owner's Oracle VM (`docs/deploy/oci-step-by-step.md`), first real admin sign-in, add `docs/deploy/known-companies.json`.
 
 ## Stack (D-01; verified 2026-10-19)
 
@@ -109,7 +109,7 @@ docker-compose.yml · docker-compose.prod.yml · Caddyfile · .env.example · lo
 ## Phase-execution rules
 
 1. One phase per session, using its prompt from `docs/plan/07`. Ask its M-items first.
-2. Work on a `phase/pNN-*` branch, never on `main`. Commit after each green task.
+2. Work on a `phase/pNN-*` branch, never on `main`. **Since 2026-10-20: do not commit or push** — keep changes uncommitted on the local branch (`phase/p05-p13`) until the user says otherwise; take local snapshots instead.
 3. Plan with `superpowers:writing-plans`; build with `superpowers:executing-plans` or `subagent-driven-development`, plus `superpowers:test-driven-development`.
 4. **Stop and report** when:
    - a build or test still fails after 2 focused fixes (then use `superpowers:systematic-debugging`)
