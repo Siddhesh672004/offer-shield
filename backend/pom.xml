@@ -19,7 +19,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <bucket4j.version>8.21.0</bucket4j.version>
+        <bucket4j.version>8.22.0</bucket4j.version>
         <greenmail.version>2.1.14</greenmail.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <tika.version>3.3.3</tika.version>
