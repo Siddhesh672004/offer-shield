@@ -229,6 +229,7 @@
   - `IdempotencyKeyTest`: `replay_sameId`, `differentContent_422`, `missingKey_400`, `concurrentDoubleClick_oneRowSameId` (Testcontainers)
   - `UploadLimitTest.sixthIn10Min_429`
   - `SubmissionAccessTest`: `otherUsersSubmission_404`, `own_200`, `list_onlyOwn` (Testcontainers, seeded rows)
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P5-02 · File validation and text extraction
 - **PRD:** §14.4 · **Decisions:** D-33.1 · **Est:** 1.0 h
@@ -242,22 +243,25 @@
   - Fewer than 50 extracted characters → 422 "paste the text instead".
   - Pasted text ≤ 20,000 chars.
 - **Tests:** `FileValidatorTest`: `exeRenamed_415`, `oversize_413`, `elevenPages_422`, `encrypted_422`, `timeout_422`, `imageOnly_422`, `validOnePage_ok`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P5-03 · AES-256-GCM text encryption
 - **PRD:** §10.1, §14.6 · **Est:** 0.5 h
 - **Files:** `common/crypto/TextCipher.java`
 - **Acceptance:** a 32-byte key from `TEXT_AES_KEY_BASE64`, checked at startup; a random 12-byte IV; AAD = submissionId; a `key_version` column.
 - **Tests:** `TextCipherTest`: `roundTrip`, `tampered_fails`, `wrongAad_fails`, `ivUnique`, `badKey_failsStartup`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P5-04 · Cloudinary private storage
 - **PRD:** §9.1 · **Decisions:** D-05 · **Est:** 1.0 h
 - **Files:** `submission/CloudinaryStore.java` (`cloudinary-http5`)
 - **Acceptance:**
-  - Upload with `type=private` **after** validation. `public_id` = `submissions/` + sha256(owner:idempotencyKey).
+  - Upload with `type=private` (changed to `type=authenticated` on 2026-11-18, 01 §3) **after** validation. `public_id` = `submissions/` + sha256(owner:idempotencyKey).
   - `delete(publicId)` treats not-found as OK.
   - `downloadLink(publicId, ttl)` uses `privateDownload(..., expires_at)` and is used in P10.
   - **Day-1 check (V-10):** generate a link for a test PDF with the "Allow delivery of PDF" setting off and then on, and record the result in 01 §6.
 - **Tests:** `CloudinaryStoreTest` (mocked SDK: `upload_privateType`, `delete_notFoundOk`, `link_hasExpiry`); `SubmissionServiceTest.invalidPdf_cloudinaryNeverCalled`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7); the V-10 live Cloudinary check is pending secrets (`CLOUDINARY_URL`).
 
 ### P5-05 · Publish after commit + sweeper
 - **PRD:** §13.3 · **Decisions:** D-20, D-28 · **Est:** 1.0 h
@@ -267,9 +271,10 @@
   - Sweeper thresholds: 2, 4, 8, 16 min; after 4 re-publishes → FAILED.
   - PRD done-when: an upload returns 202 and the event is visible in Kafka.
 - **Tests:**
-  - `SubmissionEventPublisherTest`: `rolledBack_noSend`, `committed_sendsDeterministicId`
+  - `SubmissionServiceTest.rolledBack_noSend` (publish only after commit; pinned there because the service owns the transaction — P13 doc fix), `SubmissionEventPublisherTest.committed_sendsDeterministicId`
   - `QueuedSubmissionSweeperTest`: `stale_republished`, `fresh_skipped`, `backoffDoubles`, `cap_marksFailed`
 - **Verify:** `backend/mvnw -B -f backend/pom.xml verify`; upload via `http://localhost`; read one message from `submission.created` with `kafka-console-consumer.sh`.
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7); live upload via `http://localhost` pending secrets (Google sign-in).
 
 **Checkpoint P5:** the idempotency key; publish after commit and what the sweeper fixes; GCM IV and AAD.
 
@@ -279,12 +284,13 @@
 
 ### P6-01 · Schema and `submission.created` consumer
 - **PRD:** §6.2, §10, §13.4, §13.5 · **Decisions:** D-28 · **Est:** 1.0 h
-- **Files:** `V7__report_signal.sql`, `analysis/SubmissionCreatedListener.java` (group `analysis`), `analysis/AnalysisService.java`, `common/kafka/KafkaConsumerConfig.java`
+- **Files:** `V10__create_report.sql` + `V11__create_report_signal.sql` (V7–V9 were taken by P3/P5), `analysis/SubmissionCreatedListener.java` (group `analysis`), `analysis/AnalysisService.java`, `common/kafka/KafkaConsumerConfig.java`
 - **Acceptance:**
   - `ErrorHandlingDeserializer`; 3 retries → `submission.created.DLT` (explicit name); bad payloads aren't retried.
   - `max.poll.records=1`.
   - External calls run outside the DB transaction; one short transaction saves `processed_event` + report + signals.
 - **Tests:** `SubmissionCreatedListenerTest`: `firstDelivery_analyses`, `duplicate_skipped`, `poison_toDltNoRetry`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-02 · RiskCheck strategy: C1, C2, C8, C9
 - **PRD:** §7.1, §7.2 · **Decisions:** D-09, D-33.6 · **Est:** 1.25 h
@@ -296,6 +302,7 @@
 - **Tests:**
   - `MoneyRequestCheckTest`: `deposit_triggered`, `hinglish_triggered`, `negatedFeeMention_notTriggered`, `negatorOnOtherNoun_triggered` ("No interview, pay registration fee today")
   - `FreeMailSenderCheckTest`, `OffPlatformContactCheckTest`, `PressureLanguageCheckTest.cappedAtTwo`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-03 · DomainValidator (SSRF guard) — never cut
 - **PRD:** §14.5, §18 · **Decisions:** M-06 · **Est:** 0.75 h
@@ -304,6 +311,7 @@
   - Rejects IP literals (dotted, decimal, hex, IPv6), ports, paths, schemes, userinfo, `localhost`, `.local`/`.internal`, single-label names and over-long names. Runs `IDN.toASCII`.
   - Derives the registrable domain per M-06.
 - **Tests:** `DomainValidatorTest` (PRD inputs `127.0.0.1`, `[::1]`, `169.254.169.254`, `evil.com:8080/x`, `http://x`, plus `2130706433`, `0x7f.0.0.1`, `localhost` → rejected; `hr.inf0sys-careers.co.in` → `inf0sys-careers.co.in`)
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-04 · RDAP client and C5
 - **PRD:** §7.1 C5, §13.7 · **Decisions:** D-19, D-31 · **Est:** 1.0 h
@@ -313,12 +321,14 @@
   - Timeout 5 s; body ≤ 256 KB; results cached 24 h.
   - Under 90 days → +20; under 1 year → +10; no data or an error → `UNAVAILABLE`.
 - **Tests:** `RdapClientTest`: `tldNotInBootstrap_unavailable`, `redirectOffList_refused`, `timeout_unavailable`, `cached_noSecondCall`, `missingRegistrationEvent_unavailable`; `YoungDomainCheckTest` at 89/90/364/365 days
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-05 · DNS client and C6
 - **PRD:** §7.1 C6 · **Decisions:** D-19, D-31 · **Est:** 0.75 h
 - **Files:** `analysis/lookup/DnsClient.java` (dnsjava), `analysis/checks/MailSetupCheck.java`
 - **Acceptance:** MX lookup; DMARC = a TXT record at `_dmarc.<domain>` starting `v=DMARC1`. Timeout 3 s; cached 1 h. No MX +15; no DMARC +5; a failure → `UNAVAILABLE`.
 - **Tests:** `MailSetupCheckTest`: `noMx_15`, `noDmarc_5`, `timeout_unavailable`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-06 · ScoringEngine and bands
 - **PRD:** §2.1, §7.2, §7.3, §18 · **Est:** 1.0 h
@@ -328,6 +338,7 @@
   - **Only C1, C10 and C11** can override to High; C12 never can.
   - Bands 0–24 / 25–49 / ≥ 50, with the PRD §7.2 messages verbatim.
 - **Tests:** `ScoringEngineTest`: `moneyRequest_high`, `onlyC1C10C11_canOverride`, `unverifiedOnly_neverOverrides`, `bandBoundaries`, `cappedAt100`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7)
 
 ### P6-07 · Save report, publish `analysis.completed`, status consumer, owner read
 - **PRD:** §5.3 fan-out, §6.2, §6.3, §11 · **Decisions:** D-04, D-14, D-20, D-28 · **Est:** 1.25 h
@@ -345,6 +356,7 @@
   - `ReportAccessTest` (Testcontainers): `otherUsersReport_404`, `own_200`, `foreignAndRandomId_sameBody`
   - `AnalysisServiceTest`: `depositLetter_high`, `ssrfSenders_noLookupCalls`
 - **Verify:** an end-to-end upload → READY in the UI or with curl.
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7); the live upload via `http://localhost` is pending secrets (Google sign-in); the same path is proven on the embedded broker by `AnalysisPipelineIT`.
 
 **Checkpoint P6:** at-least-once delivery + idempotent consumers; fan-out with two consumer groups; SSRF; hard overrides.
 
@@ -362,6 +374,7 @@
   - All models fail → empty. The analysis continues and the report shows "AI unavailable".
   - Request settings: `reasoning_effort` low (gpt-oss) or none (qwen); `include_reasoning: false`; `response_format: json_object`; `max_completion_tokens` ≤ 1,500.
 - **Tests:** `LlmChainTest`: `rateLimited_next`, `retryAfterHonoured`, `durationHeaderParsed`, `readTimeout_next`, `connectRefused_next`, `unknownModel_skipped`, `allFail_empty`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Built and tested against a local Groq stub only (`GROQ_API_KEYS` blank, D-30): the real call and the V-09 token measurement are pending secrets. Files as listed plus `ai/ChatProvider.java`, `ChatRequest.java`, `ProviderReply.java`, `RateLimits.java`, `LlmAnswer.java`.
 
 ### P7-02 · Masking, extraction, cache, prompt-injection defence
 - **PRD:** §7, §8.1, §8.5, §8.6, §18 · **Decisions:** D-07, D-06, R-A · **Est:** 1.75 h
@@ -380,6 +393,7 @@
   - `LlmCacheTest.secondCall_noProviderCall`
   - `PromptInjectionTest`: hostile but *valid* AI output → the band is unchanged, `score(on) ≥ score(off)`, and the checks triggered with AI on include all of those with AI off
   - `AnalysisServiceTest.aiEmpty_partialAiUsedFalse`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Migrations `V12__create_llm_cache.sql` and `V13__add_report_ai_details.sql` (the "AI-extracted" company/recruiter/CTC/joining date shown in the report); also `ai/Redaction.java`, `Extraction.java`, `ExtractionService.java`, `analysis/checks/AiFindings.java`, `analysis/AiDetails.java`, `common/CopyRules.java`. The request is captured by a JDK `HttpServer` stub (`support/GroqStub`), not WireMock. R-A: in P7 the AI's candidates feed only C1 (same rule, labelled "AI-extracted"); the company name waits for C3 (P8) and must never drive the C11 downgrade (P9).
 
 ### P7-03 · "Explain simply"
 - **PRD:** §4 F4, §8.1, §11 · **Est:** 1.0 h
@@ -389,6 +403,7 @@
   - Uses the signals as input (masked), cached in `report.explanation`.
   - If AI is empty, falls back to a template built from the signals.
 - **Tests:** `ExplainServiceTest`: `cachedSecondCall`, `aiUnavailable_template`, `notOwner_404`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `analysis/ReportExplanationService.java` (owner check → AI outside a transaction → conditional save) and `ExplanationResponse.java`; JSON for P12 in 02 §5. AI unavailable → `200` with the template (`aiWritten: false`, not saved).
 
 **Checkpoint P7:** the fallback chain; why AI can't change the score; masking.
 
@@ -403,6 +418,7 @@
   - `GET/POST/DELETE /api/known-companies` is ADMIN only (others 403).
   - Domains are normalised to lowercase ASCII and are unique.
 - **Tests:** `KnownCompanyControllerTest`: `nonAdmin_403`, `duplicateDomain_409`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Migrations are `V14__create_known_company.sql` and `V15__create_known_company_domain.sql` (V8/V9 were taken); **no seed migration**: V-21 is still pending (user), so the list starts empty and the seed step is pending (05 §7). Also `company/KnownCompany.java`, `KnownCompanyDomain.java`, the two repositories, `KnownCompanies.java` (cached read side), `KnownCompanyDirectory.java`, request/response records; `FreeMailDomains` moved to `common`; `ConflictException(errorCode, detail)`; URL rule in `SecurityConfig`. Extra endpoints `POST/DELETE /api/known-companies/{id}/domains[/{domain}]` (01 §3 P8, JSON in 02 §5).
 
 ### P8-02 · C3 (domain mismatch) and C4 (brand lookalike)
 - **PRD:** §7.1 C3/C4 · **Decisions:** D-03 · **Est:** 1.25 h
@@ -412,6 +428,9 @@
   - C4 +30: per D-03.
   - PRD done-when: `inf0sys-careers.com` is flagged.
 - **Tests:** `LookalikeDomainCheckTest`: `inf0sysCareers_flagged`, `lnfosys_flagged`, `official_notFlagged`, `cyrillicHomoglyph_flagged`, `unrelated_notFlagged`; `CompanyDomainMismatchCheckTest`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `analysis/checks/CompanyNames.java`; rules (minimum brand length 5, 1 edit for 5–7-character brands and 2 for 8+, R-A for the AI company name, free-mail senders left to C2) in 01 §3 P8. J6 is proven by `KnownCompanyLookalikeIT` (MockMvc + embedded broker); the live J6 with an admin Google sign-in is pending secrets.
+
+**Checkpoint P8:** look-alike rules (skeleton, contains, edit distance, minimum brand length); why official and free-mail domains are never flagged (D-08); why the AI's company name can only add risk (R-A).
 
 ---
 
@@ -422,6 +441,7 @@
 - **Files:** `V10__registry.sql` (`report_snapshot` + `signals_json`, `indicator`, `indicator_reporter`), `registry/ReportSnapshotListener.java` (group `registry-snapshot`)
 - **Acceptance:** upsert by `submission_id`; dedupe; DLT.
 - **Tests:** `ReportSnapshotListenerTest`: `upsert_idempotent`, `poison_toDlt`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Migrations are `V16__add_report_registry_markers.sql` (report keys for the D-28 re-send), `V17__create_report_snapshot.sql`, `V18__create_indicator.sql`, `V19__create_indicator_reporter.sql` (V10 was taken); also `registry/ReportSnapshotService.java`, `ReportSnapshotRepository.java` (plain SQL upsert), `ReportSnapshotView.java`; the snapshot keeps the registrable sender domain; `indicatorsComplete` is a `Boolean` so pre-P9 events still read (`AnalysisCompletedEventTest`).
 
 ### P9-02 · HMAC and SimHash
 - **PRD:** §10.1, §18 · **Decisions:** D-18 · **Est:** 1.0 h
@@ -429,6 +449,7 @@
 - **Tests:**
   - `IndicatorHasherTest`: `phoneFormats_sameHash`, `differentPepper_differentHash`
   - `SimHashTest`: `nearDuplicate_withinThree`, `differentTexts_beyondThree`, `namesNumbersDatesChanged_zeroToOne`, `under50Words_none`, `genuineLettersSharedBoilerplate_beyondThree`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Pepper required at startup (≥ 32 characters, message never shows it); keys are made in the analysis (`analysis/RegistryLookup.java`) right where the values are found, max 10 phones + 10 UPI IDs per letter; SimHash measured distances and the threshold note in 01 §3 P9.
 
 ### P9-03 · Matching service (in-process) + shared-domain guard
 - **PRD:** §7.1 C10–C12, §10.1 · **Decisions:** D-08, D-33.5 · **Est:** 1.25 h
@@ -439,6 +460,7 @@
   - REJECTED markers are ignored.
   - Free-mail and official domains never become markers (D-08) and are ignored when matching.
 - **Tests:** `MatchServiceIT` (Testcontainers): `confirmedPhone_matches`, `simhashWithin3`, `distinctReporters_union`, `rejected_ignored`; `IndicatorFactoryTest.freeMailDomain_neverBecomesIndicator`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `registry/SharedDomains.java` (D-08: free mail + any known company's official domain, at creation and at match time), `IndicatorRepository.java` (`BIT_COUNT(simhash ^ ?)`), `IndicatorService.java` (the write API P10 calls: `reportScam`, `confirm`, `withdrawReport`, `revert`, `markersOf`, `find`; signatures in 02 §5), `IndicatorServiceIT` (11).
 
 ### P9-04 · C10, C11, C12 + copied-letter guard
 - **PRD:** §7.2, §7.3, §18 · **Decisions:** R-A, R-B · **Est:** 1.5 h
@@ -454,6 +476,7 @@
   - `NearDuplicateCheckTest.unverifiedMatch_noOverride`
   - `ConfirmedIndicatorCheckTest.unverifiedMatch_noOverride`
   - `UnverifiedReportsCheckTest` (tiers)
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `analysis/checks/CopiedLetterGuard.java` (rules-only company, R-A), `RegistryFindings.java`, `RegistryMarkers.java`; report JSON `registry {confirmedScam, wordingWarning, reportedBy}` for P12 (02 §5). PRD done-when proven by `RegistryPipelineIT.scamConfirmedAtUserA_flaggedForUserB_c10High` (embedded broker; the confirmation comes from test data through `IndicatorService.confirm`, the P10 flows are next).
 
 **Checkpoint P9:** why HMAC and not SHA-256; how SimHash works; why unverified reports never override.
 
@@ -470,6 +493,7 @@
   - A 6th report in a day → 429 (DB count).
   - Markers are created as UNVERIFIED (CONFIRMED ones stay CONFIRMED), and the reporter is added once.
 - **Tests:** `ScamReportAccessTest.otherUsersSubmission_404`; `ScamReportServiceTest`: `duplicate_409`, `sixthInDay_429`, `confirmedStaysConfirmed`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Migrations are `V20__create_scam_report.sql` and `V21__create_review_case.sql` (V11 was taken; one table per file); the description is stored AES-GCM encrypted; the 24 h window is rolling; also `GET /api/scam-reports` (own reports) for P12; API in 02 §5, choices in 01 §3 P10.
 
 ### P10-02 · Admin moderation and Revert
 - **PRD:** §6.4.5–7, §13.8 · **Decisions:** D-13, D-22, D-33.4, R-E · **Est:** 1.25 h
@@ -482,6 +506,7 @@
   - `POST /api/admin/indicators/{id}/revert`: CONFIRMED → UNVERIFIED.
   - Every action writes an audit row; the reporter is emailed.
 - **Tests:** `ScamReportDecisionTest`: `confirm_upgrades`, `reject_cleanup`, `stale_409`, `nonAdmin_403`, `audited`; `RevertTest.confirmedToUnverified_audited`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `scamreport/ScamReportService.java`, `registry/EvidenceService.java` + `ReportEvidence.java` (D-04 evidence shared with reviews); journeys J3/J4 as `ScamReportJourneyIT` (GreenMail).
 
 ### P10-03 · TPO review cases
 - **PRD:** §4 F5, §6.5, §13.8 · **Decisions:** D-04, D-08, R-E · **Est:** 1.25 h
@@ -495,6 +520,7 @@
   - `ReviewDecisionConcurrencyTest.sameVersion_one200one409`
   - `ReviewScopeTest`: `otherCollege_404`, `notOwnerOrNotApproved_404`
   - `ReviewDecisionTest`: `confirmedScam_upgrades`, `sharedDomainExcluded`, `audited`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Also `GET /api/reviews` (the student's own cases) for P12, `membership.MembershipService.findApprovedCollegeId`; journey J5 + drill F-06 as `TpoReviewJourneyIT` (GreenMail).
 
 ### P10-04 · PDF download links
 - **PRD:** §9.1 · **Decisions:** D-05, M-07 · **Est:** 0.75 h
@@ -502,10 +528,12 @@
   - `GET /api/reviews/{id}/pdf-link` (TPO of the case's college) and `GET /api/admin/scam-reports/{id}/pdf-link` (ADMIN) → `{url, expiresAt}` per M-07.
   - Everyone else gets 404.
 - **Tests:** `PdfLinkAccessTest`: `tpoOwnCollege_ok`, `tpoOtherCollege_404`, `student_404`, `admin_ok`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). M-07 = 5 min. `submission/PdfLinkService.java` + `PdfLink.java`; a student (wrong role) gets **403**, not 404 (CLAUDE.md invariant 3), so the test is `student_403`; another college and random IDs get the same 404; no stored PDF or storage off → 404 `PDF_NOT_AVAILABLE`; the live Cloudinary check (V-10) stays pending secrets.
 
 ### P10-05 · `GET /api/registry/domains/{domain}`
 - **PRD:** §11 · **Est:** 0.25 h
 - **Acceptance:** signed in; syntax validated; returns `{status: CONFIRMED|UNVERIFIED|NONE, reporterCount?}`.
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `registry/RegistryController.java`, `DomainStatusService.java`; adds `NOT_TRACKED` for free-mail/official domains (D-08), `domain` (registrable) and `message`; `DomainStatusTest` (6).
 
 **Checkpoint P10:** optimistic locking; trust levels; who can see what.
 
@@ -528,6 +556,7 @@
   - Indicators and the audit log are kept.
   - A Cloudinary failure is retried on the next run.
 - **Tests:** `RetentionJobTest`: `expired_allCleaned`, `snapshotKeptWhileCaseOpen`, `cloudinaryFails_retriedNextRun`, `notExpired_untouched`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `retention/RetentionJob.java` (cron 03:30 Asia/Kolkata, `offershield.retention.enabled` toggle) + `RetentionService.java` (batches, one short transaction per batch, Cloudinary outside transactions, in-JVM lock, isolated steps) + `RetentionResult.java`; `submission/SubmissionRetention.java`; small retention methods on `ReportService`, `ReportSnapshotService`, `ReviewService`, `ScamReportService`, `LlmCache`, `ProcessedEvents`; `V22__make_scam_report_description_nullable.sql` (descriptions wiped 30 days after the decision). Submission rows are wiped, not deleted (FKs from cases, scam reports, reporters). Tests: `RetentionJobTest` (8, MySQL; also `snapshotKeptWhileScamReportOpen`, `secondRun_doesNothing`, `storageNotConfigured_pdfKeptForNextRun_noError`, `log_countsAndIdsOnly`), `RetentionServiceTest` (9), `RetentionJobScheduleTest` (5), `WipedDescriptionTest` (1). Choices in 01 §3 P11; live Cloudinary check pending secrets.
 
 ---
 
@@ -537,6 +566,7 @@
 - **Est:** 1.5 h
 - **Acceptance:** PDF or text plus the optional fields. The Idempotency-Key is generated once per attempt and reused on retry. 413/415/422/429 are shown inline.
 - **Tests:** `upload.spec` (`retry_reusesKey`, `422_shown`)
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `features/student/upload/` (signal form, one Idempotency-Key per letter, every `POST /api/submissions` error mapped), `my-submissions.ts` (on `/app`, all statuses), `submission-api.ts`, `student.routes.ts` (USER-only upload); specs `upload.spec` (22 incl. `retry_reusesKey`, `changedLetter_getsNewKey`, `doubleSubmit_sendsOnce`, `422_shown`, 413/415/429), `my-submissions.spec` (4). M-08 English only (01 §3 P12).
 
 ### P12-02 · Report (polling), Explain, Ask my TPO, Report scam
 - **Decisions:** D-14 · **Est:** 2.0 h
@@ -545,15 +575,18 @@
   - Renders: band word + shape + colour with the verbatim message; signals with evidence, source kind and "AI-extracted"; "Reported as a scam by N users (not verified)" kept distinct from "Confirmed scam"; PARTIAL notices naming the missing checks.
   - "Ask my TPO" appears only for students on campus.
 - **Tests:** `report.spec`: `stopsOnReady`, `stopsOnPartial`, `stopsOnFailed`, `waitsForPrevious`, `trustLevelsDistinct`, `askTpo_hiddenIfIndependent`
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `features/student/report/` (`report-page` polling + report, `explain`, `ask-tpo`, `scam-report-card`), `features/student/report-scam/`, `report-api.ts`, `review-api.ts`, `scam-report-api.ts`; shared `shared/report/signal-list` + `signal-item`, `shared/ui/ai-tag`, `shared/format/en-in`. Specs `report.spec` (22, all six named), `explain.spec` (5), `ask-tpo.spec` (7), `report-scam.spec` (12 incl. `409_showsExistingReport`, `429_showsRetryAfter`), `signal-list.spec` (4).
 
 ### P12-03 · TPO: pending members, review queue (evidence + PDF link)
 - **Est:** 1.25 h
 - **Acceptance:** the `If-Match` 409 is handled ("Someone else decided — refreshed"); a reject needs a reason.
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `features/tpo/members/` (Pending members: approve, reject with a required reason, `If-Match`, 409/404 refresh, 428), `features/tpo/reviews/` (Review queue; case page with D-04 evidence, D-05 PDF link, decision + note with `If-Match`, 409 `CONFLICT`/`ALREADY_DECIDED` refresh, `EVIDENCE_DELETED`), `tpo.routes.ts` (`/tpo` → `/tpo/members`); shared `shared/report/evidence` + `pdf-link`, `shared/ui/confirm-step`, `core/http/if-match`, `core/a11y/focus`, `shared/forms/form-errors`; role-aware nav (TPO: Members, Reviews). Specs `pending-members.spec` (14), `review-queue.spec` (6), `review-case.spec` (14), `evidence.spec` (11), `pdf-link.spec` (5). Choices in 01 §3 (P12 part B).
 
 ### P12-04 · Admin: colleges and TPOs, unverified scam reports (+ Revert, PDF link), known companies
 - **Est:** 1.75 h
 - **Acceptance:** the same 409 handling; unverified data is never shown as fact.
 - **Verify (P12):** `npx ng test --watch=false && npx ng build`; manual journeys J1–J6 ([05 §5](05-testing-and-security-plan.md)) at 360 px and on desktop.
+- **Status:** ✅ Done 2026-10-20 on `phase/p05-p13` (uncommitted; evidence in 05 §7). `features/admin/colleges/` (colleges with assigned vs waiting TPOs, add college, assign TPO → ASSIGNED/PENDING), `features/admin/scam-reports/` (`?status=OPEN|CONFIRMED|REJECTED` tabs; reporter's words labelled a claim, wiped description, evidence, PDF link; Confirm, Reject behind a confirm step, Revert behind a confirm step with the marker's version; 409 `CONFLICT`/`ALREADY_DECIDED`/`EVIDENCE_DELETED`/`NOT_CONFIRMED` refresh), `features/admin/companies/` (known companies with every `errorCode` mapped, add/remove domain, delete behind a confirm step), `admin.routes.ts` (`/admin` → `/admin/colleges`); nav (Admin: Colleges, Scam reports, Companies). Specs `admin-colleges.spec` (12), `admin-scam-reports.spec` (19), `known-companies.spec` (21), nav and route specs. J1–J6 at 360/1280 px with mock-API screenshots; live journeys pending secrets.
 
 ---
 
@@ -562,10 +595,12 @@
 ### P13-01 · All mandatory tests green
 - **Est:** 1.0 h
 - **Acceptance:** every test in [05 §2](05-testing-and-security-plan.md) exists and passes; `backend/mvnw verify` and the frontend tests are green; results logged in 05 §7, with executed and passed kept separate.
+- **Status:** ✅ Done 2026-10-21 on `phase/p05-p13` (uncommitted; evidence in 05 §7; live checks needing secrets are listed as pending).
 
 ### P13-02 · Security proofs
 - **Est:** 1.0 h
 - **Acceptance:** S-01…S-12 and drills F-01…F-06 ([05](05-testing-and-security-plan.md)) are run, with evidence recorded.
+- **Status:** ✅ Done 2026-10-21 on `phase/p05-p13` (uncommitted; evidence in 05 §7). Live re-run with real secrets on 2026-11-18 (mock IdP instead of Google only): S-01, S-03…S-07, S-11, S-12 and F-01…F-06 passed; N1 Cloudinary defect found and fixed (01 §3).
 
 ---
 
@@ -576,10 +611,12 @@
 - **Acceptance:**
   - `docker-compose.prod.yml` sets the memory limits, log rotation, `restart: unless-stopped`, and Caddy on 80/443 with site `{$APP_DOMAIN}`.
   - Every image has arm64 (`docker manifest inspect`).
+- **Status:** ✅ Done 2026-11-18 (uncommitted): `docker-compose.prod.yml`, Caddyfile unchanged, arm64 checked for all 7 base images; guide `docs/deploy/oci-step-by-step.md` (05 §7).
 
 ### P14-02 · VM, firewall, DuckDNS, first start
 - **Est:** 2.0 h (1–4)
 - **Acceptance:** the [06 §4](06-deployment-and-verification.md) runbook is complete, and `https://<name>.duckdns.org` works.
+- **Status:** ⏳ Pending: needs the owner's Oracle Cloud account and VM (sign-up needs the owner's card and phone).
 
 ### P14-03 · Google production settings, demo data, smoke test
 - **Est:** 0.75 h
@@ -587,6 +624,7 @@
   - Redirect URI added; consent screen set to "In production".
   - Demo registry seeded with **your own fake letters** (§19.5).
   - A friend signs in from a phone and gets a report.
+- **Status:** ⏳ Pending P14-02.
 
 ## P15 — README (PRD H62–63)
 
@@ -595,6 +633,7 @@
 - **Acceptance:**
   - The architecture diagram (02 §1); how to run; the env variable names; the PRD §19 limitations (with D-16, D-21 and D-11 noted); the real AI capacity; the off-campus claim marked as an assumption.
   - No resume numbers unless measured.
+- **Status:** ✅ Written 2026-11-18 (`README.md`, uncommitted): links checked, gitleaks clean (05 §7). Push to GitHub waits for the owner's go-ahead.
 
 ---
 

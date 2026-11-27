@@ -45,13 +45,15 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
 
 ## 4. Oracle Cloud runbook (PRD §16.3; facts V-14, V-15, V-16, V-18)
 
+Beginner walkthrough of these steps, with exact commands: [docs/deploy/oci-step-by-step.md](../deploy/oci-step-by-step.md).
+
 1. **Account and VM:**
    - Sign up; the card is for identity only, and nothing is charged on Always Free. Choose the home region carefully (Mumbai or Hyderabad).
    - Create an **Ubuntu arm64** VM on **VM.Standard.A1.Flex** with your SSH key. 2 OCPU / 12 GB is the max; 1 OCPU / 6 GB is also enough for this app.
    - If you get "out of capacity", retry later.
 2. **Firewall (two layers):**
    - VCN security list: allow TCP 80 and 443.
-   - On the VM: insert ACCEPT rules for 80/443 **before** the final REJECT rule in iptables, then `sudo netfilter-persistent save`.
+   - On the VM: insert ACCEPT rules for 80/443 **before** the final REJECT rule in iptables, then `sudo netfilter-persistent save`. Do this **before installing Docker** (step 3); a later save would also store Docker's own rules, which Docker re-creates at every start.
    - **Don't enable UFW** (Oracle warns it can break booting).
    - Check with `sudo iptables -L INPUT -n --line-numbers`.
 3. **Docker:** install Docker Engine + the Compose plugin from Docker's apt repo (arm64), then `docker run --rm hello-world`.
@@ -65,14 +67,14 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
    - Add the production redirect URI.
    - Move the consent screen from **Testing** (100-user cap) to **In production**.
    - Scopes `openid`, `email` and `profile` don't need a verification review; brand verification only matters for showing a logo.
-9. **Idle rule:** Oracle reclaims Always Free VMs only if CPU, network **and** memory all stay under 20 % for 7 days. A running stack keeps memory above that.
+9. **Idle rule:** Oracle reclaims Always Free VMs only if CPU, network **and** memory all stay under 20 % for 7 days. The idle stack uses about 2 GB including the OS (containers ≈ 1.6 GB, measured locally 2026-11-18). That is about a third of a 6 GB VM, but may be under 20 % of a 12 GB VM, so the guide recommends 1 OCPU / 6 GB (+ 2 GB swap for builds); on 12 GB, check `free -h` after the first days.
 
 ## 5. Provider checks at set-up (record the results in 01 §6)
 
 | Provider | Check | Pass condition |
 |---|---|---|
 | Groq (V-24, V-07) | Sign up from India; models listed; limits page; ZDR on | Works, **or** it's recorded that it doesn't (the app then runs rule-only) |
-| Cloudinary (V-10) | P5-04: a private upload's public URL is refused; a `privateDownload` link works (test with the PDF setting off and then on) | The behaviour is recorded |
+| Cloudinary (V-10) | PDFs are uploaded with delivery type `authenticated` (2026-11-18). Request the original and a derived render without a signature (e.g. `…/image/authenticated/<public_id>.pdf`, `…/image/authenticated/pg_1/<public_id>.jpg`); open a signed `privateDownload` link. Optional extra hardening: Settings → Security → "Strict transformations" | Unsigned URLs refused (401); the signed link returns the PDF. Checked 2026-11-18 (05 §7) |
 | Gmail (V-13) | An app-password email to yourself via `smtp.gmail.com:587` | Delivered (it may land in spam) |
 | Google (V-12) | Login via each redirect URI | Works |
 | Flyway (V-25) | P1-03 migration on `mysql:8.4` | "Successfully applied" |
@@ -86,8 +88,10 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
 | Memory | `docker stats --no-stream` | After a deploy and under load | Adjust M-09 limits |
 | Disk | `df -h`; log rotation (Docker json-file + logback 14 days) | Weekly | Prune images; check log rotation |
 | Stuck submissions | `SELECT COUNT(*) FROM submission WHERE status='QUEUED' AND created_at < NOW() - INTERVAL 10 MINUTE` | Daily | Look at the DLT and the logs for that `requestId` |
-| DLT backlog | `kafka-console-consumer.sh --topic submission.created.DLT --from-beginning --timeout-ms 5000` | Daily | Fix the cause; re-drive manually if safe |
-| Retention ran | `SELECT COUNT(*) FROM submission WHERE expires_at < NOW() AND status <> 'DELETED'` → 0 | Daily | Check the job log / Cloudinary errors |
+| DLT backlog | `kafka-console-consumer.sh --topic submission.created.DLT --from-beginning --timeout-ms 5000`; `grep "event dead-lettered" logs/offershield.log` (each line carries `deadLettersOnTopic=N`, the Micrometer counter `offershield.kafka.dead.letters` since startup, P13) | Daily | Fix the cause; re-drive manually if safe |
+| Retention ran | `SELECT COUNT(*) FROM submission WHERE expires_at < NOW() AND status <> 'DELETED'` → 0 (after 03:30 IST), and one `retention run: …` line a day in `logs/offershield.log` with `failedSteps=0 failedBatches=0` | Daily | Check the job log (`retention step failed step=…`, `retention batch skipped step=…`) |
+| Startup misconfiguration | `grep -E "ai not configured\|pdf storage not configured" logs/offershield.log` (WARN at startup, P13) | After a deploy | Set `GROQ_API_KEYS` / `CLOUDINARY_URL` in `.env` and restart the app |
+| PDFs pending deletion | `SELECT COUNT(*) FROM submission WHERE status = 'DELETED' AND cloudinary_public_id IS NOT NULL` → 0 | Daily | Cloudinary errors (`pdf delete failed` / `storage not configured` in the log); the next run retries (P11) |
 | AI quota | "model exhausted" lines in the logs; Groq console | During a pilot | Expected (D-11); reports still arrive |
 | Gmail quota | SMTP 4xx in the logs | During a pilot | Wait 1–24 h |
 | TLS | Caddy logs | Monthly | Port 80 must stay open |
@@ -96,7 +100,7 @@ Back up `TEXT_AES_KEY_BASE64` and `INDICATOR_HMAC_PEPPER` offline. Losing them m
 ## 7. Post-deploy verification (M8)
 
 1. `https://<domain>` loads with a valid certificate; S-08 headers are present, including HSTS.
-2. On the VM, `sudo ss -tlnp` shows only 80/443 public. From another machine, `nc -zv <ip> 8080` fails.
+2. On the VM, `sudo ss -tlnp` shows only 22 (sshd), 80 and 443 public. From another machine, `nc -zv <ip> 8080` fails (Windows: `Test-NetConnection <ip> -Port 8080` → `TcpTestSucceeded : False`; also 3306 and 9092).
 3. A non-test Google account signs in from a phone; the cookie matches S-01.
 4. J1 works on the phone; J3/J4 work with demo data (P14-03).
 5. `docker stats` stays within the M-09 limits after J1–J4.
